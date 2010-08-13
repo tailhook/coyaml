@@ -1,0 +1,4 @@
+SimpleHTTPServer:
+  log-level: 7
+  log-file: "hello"
+  error-string: "The real error"

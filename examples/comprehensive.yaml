@@ -1,0 +1,136 @@
+
+__meta__:
+  program-name: simplehttp
+  default-config: /etc/simplehttp.yaml
+  description: >
+    This is a non-working server to test some configuration file facilities
+
+__types__:
+
+  connectaddr: &connectaddr
+    host: !String ""
+    port: !Int
+      min: 1
+      max: 65535
+      =: 80
+    unix-socket: !String ""
+    __value__: !Convert convert_connectaddr
+
+  listenaddr:
+    <<: *connectaddr
+    fd: !Int -1
+    __value__: !Convert convert_listenaddr
+
+  zmqaddr:
+    __tags__:
+      __property__: kind
+      __default__: zmq.Connect
+      zmq.Bind: 1
+      zmq.Connect: 2
+    __value__: !String ""
+
+  response:
+    code: !Int
+        min: 100
+        max: 999
+        =: 200
+    status: !String OK
+    headers: !Mapping
+      key-element: !String ""
+      value-element: !String ""
+      default:
+        X-Config: coyaml
+    body: !String |
+      <!DOCTYPE html>
+      <html>
+        <title>Test page<title>
+        <body>
+            <h1>Test page</h1>
+        </body>
+      </html>
+
+SimpleHTTPServer:
+  log-level: !Int
+    min: 1
+    max: 7
+    default: 5
+    description: >
+      Amount of debugging info written into log file (or stdout)
+    command-line: [-D, --log-level]
+    command-line-incr: [ -v, --verbose]
+    command-line-decr: [ -q, --quiet]
+  log-file: !File
+    check-dir: yes
+    check-writable: yes
+    description: >
+      File to write log into. Specify "-" for stdout.
+    default: "-"
+    command-line: [ -l, --log-file ]
+  listen: !Struct
+    =: listenaddr
+    default:
+        host: localhost
+        port: 80
+    command-line: [ -a, --listen-addr]
+    description: >
+      Listen for specified address
+    command-line-descr: >
+      Listen for specified address. If path startswith "/" it's unix domain
+      socket, else it's tcp
+  root: !Dir
+    check-existence: yes
+    command-line: [ -r, --root ]
+    description: >
+      Root directory to serve
+  server-string: !String
+    default: coyaml-sampleserver/$coyaml_version
+    description: >
+      String which will be sent in the header named Server
+  extra-headers: !Mapping
+    key-element: !String ""
+    value-element: !String ""
+    default:
+      X-Hello: World
+      X-Fun: The real one
+    description: >
+      Headers to add to reply
+  http-forward: !Array
+    element: !Struct connectaddr
+    description: >
+      Address to forward input request to, for further processing
+  status-socket: !Struct
+    =: zmqaddr
+    description: >
+      Socket address to get status from by zmq protocol
+  responses:
+    default: !Struct
+      description: >
+        Response, will be answered for any request, if no root specified.
+        Useful for maintainance pages.
+    not-found: !Struct
+        =: response
+        default:
+            code: 404
+            status: Not Found
+            body: |
+              <!DOCTYPE html>
+              <html>
+                <title>404 Page Not Found<title>
+                <body>
+                    <h1>Page Not Found</h1>
+                </body>
+              </html>
+    internal-error: !Struct
+        =: response
+        default:
+            code: 500
+            status: Internal Server Error
+            body: |
+              <!DOCTYPE html>
+              <html>
+                <title>Internal Server Error<title>
+                <body>
+                    <h1>Internal Server Error</h1>
+                    Please try again later
+                </body>
+              </html>

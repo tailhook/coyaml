@@ -1,0 +1,41 @@
+
+__meta__:
+  program-name: simplehttp
+  default-config: /etc/simplehttp.yaml
+  description: >
+    This is a non-working server to test some configuration file facilities
+
+SimpleHTTPServer:
+  port: !Int
+    min: 1025
+    max: 65535
+    default: 8000
+    description: >
+      Port to listen HTTP on
+    command-line: [-p, --port]
+  log-level: !Int
+    min: 1
+    max: 7
+    default: 5
+    description: >
+      Amount of debugging info written into log file (or stdout)
+    command-line: [-D, --log-level]
+    command-line-incr: [ -v, --verbose]
+    command-line-decr: [ -q, --quiet]
+  log-file: !File
+    check-dir: yes
+    check-writable: yes
+    description: >
+      File to write log into. Specify "-" for stdout.
+    default: "-"
+    command-line: [ -l, --log-file ]
+  root: !Dir
+    check-existence: yes
+    command-line: [ -r, --root ]
+    description: >
+      Root directory to serve
+  server-string: !String
+    type: string
+    default: coyaml-sampleserver/$coyaml_version
+    description: >
+      String which will be sent in the header named Server

@@ -1,0 +1,8 @@
+
+SimpleHTTPServer:
+  log-level: 3
+  log-file: "/var/log/test.log"
+  listen:
+    host: localhost
+  root: "/var/www"
+#  status-socket: !Bind tcp://127.0.0.1:1111/
