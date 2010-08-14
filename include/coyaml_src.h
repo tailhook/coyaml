@@ -1,3 +1,6 @@
+#ifndef COYAML_SRC_HEADER
+#define COYAML_SRC_HEADER
+
 #include <stddef.h>
 #include <coyaml_hdr.h>
 
@@ -113,3 +116,5 @@ void coyaml_CCustom(coyaml_parseinfo_t *info, coyaml_custom_t *prop, void *targe
 
 int coyaml_readfile(char *filename, coyaml_group_t *root,
     void *target, bool debug);
+
+#endif //COYAML_SRC_HEADER

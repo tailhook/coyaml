@@ -2,45 +2,6 @@
 from collections import defaultdict
 from . import load
 
-class Field(object):
-    def __init__(self, name, type):
-        self.name = name
-        self.type = type
-        self.raw_type = type.__class__
-
-class StructureDef(object):
-    ctypes = {
-        load.Int: 'int',
-        load.UInt: 'uint',
-        load.Float: 'float',
-        load.String: 'string',
-        load.Bool: 'bool',
-        load.Array: 'array',
-        load.Mapping: 'mapping',
-        load.File: 'file',
-        load.Dir: 'dir',
-        }
-
-    def __init__(self, name, fields=None):
-        self.name = name
-        if fields is None:
-            self.fields = fields
-        else:
-            self.fields = []
-
-    def add_field(self, f):
-        self.fields.append(f)
-
-    def format(self, prefix):
-        lines = ['typedef struct %s%s_s {' % (prefix, self.name)]
-        for f in self.fields:
-            if isinstance(f.type, dict):
-                lines.append('    // STRUCT')
-            else:
-                lines.append('    {0} {1};'.format(self.ctypes[f.raw_type],
-                    f.name))
-        lines.append('} %s%s_t;' % (prefix, self.name))
-
 class ArrayVal(object):
     def __init__(self, value):
         self.value = list(value)
@@ -294,5 +255,5 @@ def main():
     GenCCode(cfg).print()
 
 if __name__ == '__main__':
-    from .gen import main
+    from .cgen import main
     main()

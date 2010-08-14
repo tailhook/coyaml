@@ -104,6 +104,7 @@ SimpleHTTPServer:
       Socket address to get status from by zmq protocol
   responses:
     default: !Struct
+      =: response
       description: >
         Response, will be answered for any request, if no root specified.
         Useful for maintainance pages.

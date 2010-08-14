@@ -3,6 +3,7 @@ import collections
 import yaml
 
 from .core import Config, Usertype
+from .util import varname
 
 class Group(collections.OrderedDict):
     __slots__ = ('start_mark',)
@@ -43,7 +44,7 @@ class YamlyType(yaml.YAMLObject):
     def __setstate__(self, state):
         default = state.pop('=', None)
         for k, v in state.items():
-            setattr(self, k, v)
+            setattr(self, varname(k), v)
         if default is not None:
             self.default = default
 
