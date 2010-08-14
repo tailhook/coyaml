@@ -147,6 +147,8 @@ class GenHCode(object):
         for one in self.alltypes:
             self.lines.extend(one.format(self.cfg.name))
             self.lines.append('')
+        self.lines.append('bool {0}_readfile(char *, {0}_main_t *, bool debug);'
+            .format(self.cfg.name))
 
     def dependency_sort(self):
         pass
@@ -175,6 +177,10 @@ class GenHCode(object):
         elif hasattr(typ, 'items'):
             for m in typ.values():
                 self.visit_complex(m)
+
+    def write_into(self, file):
+        for line in self.lines:
+            file.write(line + '\n')
 
     def print(self):
         for line in self.lines:

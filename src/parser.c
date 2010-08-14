@@ -1,9 +1,15 @@
+
+#include <yaml.h>
+#include <errno.h>
+
 #define COYAML_PARSEINFO
 #define ANCHOR_ITEMS_MAX 64
 #define ANCHOR_EVENTS_MAX 1024
 typedef struct coyaml_parseinfo_s {
     int debug;
+    char *filename;
     struct config_head_s *head;
+    void *target;
     yaml_parser_t parser;
     yaml_event_t event;
     int anchor_level;
@@ -15,40 +21,44 @@ typedef struct coyaml_parseinfo_s {
         char name[64];
         int begin;
     } anchors[ANCHOR_ITEMS_MAX];
-} config_parseinfo_t;
+} coyaml_parseinfo_t;
 
 #include <coyaml_src.h>
 
-
+#define CHECK(cond) if((cond) < 0) { return -1; }
 #define SYNTAX_ERROR(cond) if(!(cond)) { \
     if(info->debug) { fprintf(stderr, "%s:%s: ", __FILE__, __LINE__); } \
     fprintf(stderr, "Syntax error in config file ``%s'' " \
         "at line %d column %d\n", \
     __FILE__, __LINE__, \
-    info->config_filename, info->event.start_mark.line+1, \
+    info->filename, info->event.start_mark.line+1, \
     info->event.start_mark.column, info->event.type); \
-    exit(COYAML_ERROR_BASE); }
-#define SYNTAX_ERROR2(message, ...) if(!(cond)) { \
+    errno = ECOYAML_SYNTAX_ERROR; \
+    return -1; }
+#define SYNTAX_ERROR2(message, ...) if(TRUE) { \
     if(info->debug) { fprintf(stderr, "%s:%s: ", __FILE__, __LINE__); } \
     fprintf(stderr, "Syntax error in config file ``%s'' " \
         "at line %d column %d: " message "\n", \
     __FILE__, __LINE__, \
-    info->config_filename, info->event.start_mark.line+1, \
+    info->filename, info->event.start_mark.line+1, \
     info->event.start_mark.column, info->event.type, ##__VA_ARGS__); \
-    exit(COYAML_ERROR_BASE); }
+    errno = ECOYAML_SYNTAX_ERROR; \
+    return -1; }
 #define VALUE_ERROR(cond, message, ...) if(!(cond)) { \
     if(info->debug) { fprintf(stderr, "%s:%s: ", __FILE__, __LINE__); } \
     fprintf(stderr, "Error at %s:%d[%d]: " message "\n", info->config_filename,\
     info->event.start_mark.line+1,info->event.start_mark.column,##__VA_ARGS__);\
-    exit(COYAML_ERROR_BASE); }
-#define COYAML_ASSERT(value) if(!value) { \
+    errno = ECOYAML_VALUE_ERROR; \
+    return -1; }
+#define COYAML_ASSERT(value) if(!(value)) { \
     fprintf(stderr, "Assertion " #value \
-        " at " #__FILE__ ":" #__LINE__ failed\n"); \
-    exit(COYAML_ERROR_BASE+1); }
+        " at " __FILE__ ":%d failed\n", __LINE__); \
+    errno = ECOYAML_ASSERTION_ERROR; \
+    return -1; }
 #define COYAML_DEBUG(message, ...) if(info->debug) { \
-    fprintf(stderr, message "\n", ##__VA_ARGS__); }
+    fprintf(stderr, "COYAML: " message "\n", ##__VA_ARGS__); }
 
-static char yaml_event_names[] = {
+static char *yaml_event_names[] = {
     "YAML_NO_EVENT",
     "YAML_STREAM_START_EVENT",
     "YAML_STREAM_END_EVENT",
@@ -62,7 +72,7 @@ static char yaml_event_names[] = {
     "YAML_MAPPING_END_EVENT"
     };
 
-static void coyaml_next(coyaml_parseinfo_t *info) {
+static int coyaml_next(coyaml_parseinfo_t *info) {
     if(info->anchor_pos >= 0) {
         memcpy(&info->event, &info->anchor_events[info->anchor_pos++],
             sizeof(info->event));
@@ -90,7 +100,7 @@ static void coyaml_next(coyaml_parseinfo_t *info) {
         if(info->anchor_level == 0) {
             info->anchor_pos = -1;
         }
-        return;
+        return 0;
     }
     if(info->event.type && info->anchor_level < 0) {
         yaml_event_delete(&info->event);
@@ -162,12 +172,13 @@ static void coyaml_next(coyaml_parseinfo_t *info) {
             yaml_event_names[info->event.type],
             info->event.type);
     }
+    return 0;
 }
 
-static void coyaml_skip(coyaml_parseinfo_t *info) {
+static int coyaml_skip(coyaml_parseinfo_t *info) {
     int level = 0;
     do {
-        coyaml_next(info);
+        CHECK(coyaml_next(info));
         switch(info->event.type) {
             case YAML_MAPPING_START_EVENT:
             case YAML_SEQUENCE_START_EVENT:
@@ -179,50 +190,53 @@ static void coyaml_skip(coyaml_parseinfo_t *info) {
                 break;
         }
     } while(level);
+    return 0;
 }
 
-static void coyaml_root(info, root, config)
+static int coyaml_root(info, root, config)
 coyaml_parseinfo_t *info;
 coyaml_group_t *root;
 void *config;
 {
-    coyaml_next(info);
+    CHECK(coyaml_next(info));
     SYNTAX_ERROR(info->event.type == YAML_STREAM_START_EVENT);
-    coyaml_next(info);
+    CHECK(coyaml_next(info));
     SYNTAX_ERROR(info->event.type == YAML_DOCUMENT_START_EVENT);
 
-    coyaml_group(info, root, config);
+    CHECK(coyaml_CGroup(info, root, config));
 
-    coyaml_next(info);
+    CHECK(coyaml_next(info));
     SYNTAX_ERROR(info->event.type == YAML_DOCUMENT_END_EVENT);
-    coyaml_next(info);
+    CHECK(coyaml_next(info));
     SYNTAX_ERROR(info->event.type == YAML_STREAM_END_EVENT);
+    return 0;
 }
 
 
 int coyaml_readfile(char *filename, coyaml_group_t *root,
     void *target, bool debug) {
-    config_parsing_info_t info;
-    info.filename = filename;
-    info.debug = debug;
-    info.target = target;
-    info.anchor_level = -1;
-    info.anchor_pos = -1;
-    info.anchor_count = 0;
-    info.anchor_event_count = 0;
-    info.event.type = YAML_NO_EVENT;
+    coyaml_parseinfo_t sinfo;
+    sinfo.filename = filename;
+    sinfo.debug = debug;
+    sinfo.target = target;
+    sinfo.anchor_level = -1;
+    sinfo.anchor_pos = -1;
+    sinfo.anchor_count = 0;
+    sinfo.anchor_event_count = 0;
+    sinfo.event.type = YAML_NO_EVENT;
 
+    coyaml_parseinfo_t *info = &sinfo;
     COYAML_DEBUG("Opening filename");
     FILE *file = fopen(filename, "r");
     if(!file) return -1;
-    yaml_parser_initialize(&info.parser);
-    yaml_parser_set_input_file(&info.parser, file);
+    yaml_parser_initialize(&info->parser);
+    yaml_parser_set_input_file(&info->parser, file);
 
-    coyaml_root(&info);
+    int result = coyaml_root(info);
 
-    yaml_parser_delete(&info.parser);
+    yaml_parser_delete(&info->parser);
     fclose(file);
     COYAML_DEBUG("Done");
-    return 0;
+    return result;
 
 }

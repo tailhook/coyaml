@@ -13,8 +13,9 @@ class ConfigMeta(object):
             setattr(self, k, v)
 
 class Config(object):
-    def __init__(self, name):
+    def __init__(self, name, targetname):
         self.name = name
+        self.targetname = targetname
         self.meta = ConfigMeta()
         self.types = {}
 

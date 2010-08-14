@@ -10,13 +10,16 @@ def simple():
         help="Name of configuration (default `config`), usefull if you have"
             "several configuration in single binary",
         dest="name", default="config", type="string")
+    op.add_option('-f', '--filename', metavar="NAME",
+        help="Filename to read",
+        dest="filename", default="config", type="string")
     op.add_option('-p', '--print',
         help="Print parsed configuration file",
         dest="print", default=False, action="store_true")
     options, args = op.parse_args()
     if args:
         op.error("No arguments expected")
-    cfg = Config(options.name)
+    cfg = Config(options.name, options.filename)
     if options.configfile:
         inp = open(options.configfile, 'rt', encoding='utf-8')
     else:
