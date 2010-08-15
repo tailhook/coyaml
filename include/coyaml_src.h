@@ -9,10 +9,10 @@ typedef struct coyaml_parseinfo_s {
 } coyaml_parseinfo_t;
 #endif
 
-typedef void (*coyaml_convert_fun)(coyaml_parseinfo_t *info,
+typedef int (*coyaml_convert_fun)(coyaml_parseinfo_t *info,
     char *value, int value_len,
     void *prop, void *target);
-typedef void (*coyaml_state_fun)(coyaml_parseinfo_t *info,
+typedef int (*coyaml_state_fun)(coyaml_parseinfo_t *info,
     void *prop, void *target);
 
 typedef struct coyaml_transition_s {

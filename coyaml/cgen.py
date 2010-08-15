@@ -205,6 +205,12 @@ class GenCCode(object):
             self.type_visitor(t, ('__types__', k))
         self.type_enum()
         self.make_types()
+        self.lines.append('bool {0}_readfile(char *filename, '
+            '{0}_main_t *target, bool debug) {{'
+            .format(self.cfg.name))
+        self.lines.append('    return coyaml_readfile(filename, '
+            '&{0}_CGroup_vars[0], target, debug);'.format(self.cfg.name))
+        self.lines.append('}')
 
     def make_types(self):
         types = self.types.copy()

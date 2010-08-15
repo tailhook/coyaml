@@ -2,6 +2,7 @@
 #define COYAML_HDR_HEADER
 
 #include <stddef.h>
+#include <obstack.h>
 
 typedef int bool;
 #define FALSE 0
@@ -11,6 +12,10 @@ typedef int bool;
 #define ECOYAML_SYNTAX_ERROR ECOYAML_MIN
 #define ECOYAML_VALUE_ERROR (ECOYAML_MIN+1)
 #define ECOYAML_ASSERTION_ERROR (ECOYAML_MIN+2)
+
+typedef struct coyaml_head_s {
+    struct obstack pieces;
+} coyaml_head_t;
 
 typedef struct coyaml_arrayel_head_s {
     void *next;
