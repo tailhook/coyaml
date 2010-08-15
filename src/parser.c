@@ -123,7 +123,7 @@ static int coyaml_next(coyaml_parseinfo_t *info) {
 /*        return 0;*/
 /*    }*/
 /*    if(info->event.type && info->anchor_level < 0) {*/
-/*        yaml_event_delete(&info->event);*/
+        yaml_event_delete(&info->event);
 /*    }*/
 /*    if(info->anchor_level == 0) {*/
 /*        info->anchor_level = -1;*/
