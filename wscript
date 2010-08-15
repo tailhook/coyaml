@@ -32,6 +32,7 @@ def singleconfig(bld, src, trg):
         source       = [
             'test/'+trg+'.c',
             'src/parser.c',
+            'src/commandline.c',
             trg+'cfg.c',
             ],
         target       = trg,

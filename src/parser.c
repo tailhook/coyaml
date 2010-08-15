@@ -83,14 +83,6 @@ static char *yaml_event_names[] = {
     "YAML_MAPPING_END_EVENT"
     };
 
-static char *coyaml_scalar_dup(coyaml_parseinfo_t *info) {
-    char *res = obstack_alloc(&info->head->pieces,
-        info->event.data.scalar.length+1);
-    memcpy(res, info->event.data.scalar.value,
-        info->event.data.scalar.length+1);
-    return res;
-}
-
 static int coyaml_next(coyaml_parseinfo_t *info) {
     // Temporarily without aliases
 /*    if(info->anchor_pos >= 0) {*/
@@ -319,7 +311,9 @@ int coyaml_CFile(coyaml_parseinfo_t *info, coyaml_file_t *def, void *target) {
     COYAML_DEBUG("Entering CFile");
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     // TODO: Implement more checks
-    *(char **)(((char *)target)+def->baseoffset) = coyaml_scalar_dup(info);
+    *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
+        &info->head->pieces,
+        info->event.data.scalar.value, info->event.data.scalar.length);
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving CFile");
     return 0;
@@ -328,7 +322,9 @@ int coyaml_CDir(coyaml_parseinfo_t *info, coyaml_dir_t *def, void *target) {
     COYAML_DEBUG("Entering CDir");
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     // TODO: Implement more checks
-    *(char **)(((char *)target)+def->baseoffset) = coyaml_scalar_dup(info);
+    *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
+        &info->head->pieces,
+        info->event.data.scalar.value, info->event.data.scalar.length);
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving CDir");
     return 0;
@@ -336,7 +332,9 @@ int coyaml_CDir(coyaml_parseinfo_t *info, coyaml_dir_t *def, void *target) {
 int coyaml_CString(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) {
     COYAML_DEBUG("Entering CString");
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
-    *(char **)(((char *)target)+def->baseoffset) = coyaml_scalar_dup(info);
+    *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
+        &info->head->pieces,
+        info->event.data.scalar.value, info->event.data.scalar.length);
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving CString");
     return 0;

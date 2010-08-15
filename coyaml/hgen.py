@@ -143,15 +143,13 @@ class GenHCode(object):
         for one in self.mappings.values():
             alltypes.append(one)
         alltypes.append(self.main)
-        self.dependency_sort()
         for one in self.alltypes:
             self.lines.extend(one.format(self.cfg.name))
             self.lines.append('')
+        self.lines.append('coyaml_cmdline_t {0}_cmdline;'
+            .format(self.cfg.name))
         self.lines.append('bool {0}_readfile(char *, {0}_main_t *, bool debug);'
             .format(self.cfg.name))
-
-    def dependency_sort(self):
-        pass
 
     def mkstruct(self, name, dic):
         val = StructureDef(name)

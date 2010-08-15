@@ -5,11 +5,9 @@
 cfg_main_t config;
 
 int main(int argc, char **argv) {
-    char *filename = "examples/compexample.yaml";
-    bool debug = FALSE;
-    //config_prepare_options(argc, argv, &config_filename, &config_debug);
-    if(cfg_readfile(filename, &config, debug) < 0) {
-        perror(filename);
+    coyaml_cli_prepare(argc, argv, &cfg_cmdline);
+    if(cfg_readfile(cfg_cmdline.filename, &config, cfg_cmdline.debug) < 0) {
+        perror(cfg_cmdline.filename);
     }
-    //config_read_options(argc, argv, &config); // CLI overrides config
+    coyaml_cli_parse(argc, argv, &cfg_cmdline, &config); // CLI overrides config
 }
