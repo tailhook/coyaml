@@ -49,6 +49,7 @@ typedef struct coyaml_group_s {
 typedef struct coyaml_usertype_s {
     int baseoffset;
     int bitmask;
+    struct coyaml_group_s *group;
     coyaml_tag_t *tags;
     coyaml_convert_fun *scalar_fun;
 } coyaml_usertype_t;
@@ -56,7 +57,7 @@ typedef struct coyaml_usertype_s {
 typedef struct coyaml_custom_s {
     int baseoffset;
     int bitmask;
-    coyaml_transition_t *transitions;
+    struct coyaml_usertype_s *usertype;
 } coyaml_custom_t;
 
 typedef struct coyaml_int_s {

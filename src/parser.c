@@ -304,6 +304,7 @@ int coyaml_CInt(coyaml_parseinfo_t *info, coyaml_int_t *def, void *target) {
     COYAML_DEBUG("Leaving CInt");
     return 0;
 }
+
 int coyaml_CFile(coyaml_parseinfo_t *info, coyaml_file_t *def, void *target) {
     COYAML_DEBUG("Entering CFile");
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
@@ -315,6 +316,7 @@ int coyaml_CFile(coyaml_parseinfo_t *info, coyaml_file_t *def, void *target) {
     COYAML_DEBUG("Leaving CFile");
     return 0;
 }
+
 int coyaml_CDir(coyaml_parseinfo_t *info, coyaml_dir_t *def, void *target) {
     COYAML_DEBUG("Entering CDir");
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
@@ -326,6 +328,7 @@ int coyaml_CDir(coyaml_parseinfo_t *info, coyaml_dir_t *def, void *target) {
     COYAML_DEBUG("Leaving CDir");
     return 0;
 }
+
 int coyaml_CString(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) {
     COYAML_DEBUG("Entering CString");
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
@@ -336,11 +339,34 @@ int coyaml_CString(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target)
     COYAML_DEBUG("Leaving CString");
     return 0;
 }
-int coyaml_CCustom(coyaml_parseinfo_t *info, coyaml_custom_t *def, void *target) {
-    COYAML_ASSERT(!"Not implemented");
+
+int coyaml_CUsertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *target) {
+    COYAML_DEBUG("Entering CUsertype");
+    if(info->event.type == YAML_SCALAR_EVENT) {
+        COYAML_ASSERT(!"Not Implemented");
+    }
+    SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
+    CHECK(coyaml_CGroup(info, def->group, target));
+    COYAML_DEBUG("Leaving CUsertype");
+    return 0;
 }
+
+int coyaml_CCustom(coyaml_parseinfo_t *info, coyaml_custom_t *def, void *target) {
+    COYAML_DEBUG("Entering CCustom");
+    if(info->event.type == YAML_SCALAR_EVENT) {
+        COYAML_ASSERT(!"Not Implemented");
+    }
+    SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
+    CHECK(coyaml_CUsertype(info, def->usertype,
+        ((char *)target)+def->baseoffset));
+    COYAML_DEBUG("Leaving CCustom");
+    return 0;
+}
+
 int coyaml_CMapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *target) {
     COYAML_ASSERT(!"Not implemented");
 }
+
 int coyaml_CArray(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
+    COYAML_ASSERT(!"Not implemented");
 }

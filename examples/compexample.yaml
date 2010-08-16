@@ -5,4 +5,17 @@ SimpleHTTPServer:
   listen:
     host: localhost
   root: "/var/www"
+  responses:
+    default:
+        code: 200
+        status: OK
+        body: |
+            <!DOCTYPE html>
+            <html>
+                <head><title>Hello</title></head>
+                <body>
+                    <h1>Hello</h2>
+                    This is an empty site, actually!
+                </body>
+            </html>
 #  status-socket: !Bind tcp://127.0.0.1:1111/

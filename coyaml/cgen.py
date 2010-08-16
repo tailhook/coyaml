@@ -163,23 +163,27 @@ class CGroup(CStruct):
 class CCustom(CStruct):
     ctype = 'coyaml_custom_t'
     fields = (
-        ('transitions', CStruct),
+        ('usertype', CStruct),
         )
-
-    @property
-    def transitions(self):
-        return self.first_tran
+    def __init__(self, val):
+        val.ctype = self
+        self.start_mark = val.start_mark
+        self.path = val.path
+        self.struct_name = val.struct_name
+        self.member_path = val.member_path
+        self.typename = val.type
 
 class CUsertype(CStruct):
     ctype = 'coyaml_usertype_t'
     fields = (
-        ('transitions', CStruct),
+        ('group', CStruct),
         )
 
     def __init__(self, data, child, *, path):
         self.data = data
-        self.child = child
+        self.group = child
         self.path = path
+        data.ctype = self
 
 class CGetopt(CStruct):
     ctype = 'struct option'
@@ -254,6 +258,8 @@ class GenCCode(object):
             '#include "{0}.h"'.format(cfg.targetname),
             '',
             'static coyaml_transition_t '+self.cfg.name+'_CTransition_vars[];',
+            'static coyaml_usertype_t '+self.cfg.name+'_CUsertype_vars[];',
+            'static coyaml_group_t '+self.cfg.name+'_CGroup_vars[];',
             ]
         self.printerlines = []
         self.types = defaultdict(list)
@@ -308,30 +314,32 @@ bool {prefix}_readfile(char *filename, {prefix}_main_t *target, bool debug) {{
 void {prefix}_free({prefix}_main_t *ptr) {{
     obstack_free(&ptr->head.pieces, NULL);
     if(ptr->head.free_object) {{
-        free(&ptr);
+        free(ptr);
     }};
 }}
 {prefix}_main_t *{prefix}_load({prefix}_main_t *ptr, int argc, char **argv) {{
-    ptr = {prefix}_init(ptr);
-    if(!ptr) {{
-        perror(argv[0]);
-    }}
     if(coyaml_cli_prepare(argc, argv, &cfg_cmdline) < 0) {{
         if(errno > ECOYAML_MAX || errno < ECOYAML_MIN)
             perror(argv[0]);
         // else, error is already printed by coyaml
         exit((errno == ECOYAML_CLI_HELP) ? 0 : 1);
     }}
+    ptr = {prefix}_init(ptr);
+    if(!ptr) {{
+        perror(argv[0]);
+    }}
     if({prefix}_readfile(cfg_cmdline.filename, ptr, cfg_cmdline.debug) < 0) {{
         if(errno > ECOYAML_MAX || errno < ECOYAML_MIN)
             perror(argv[0]);
         // else, error is already printed by coyaml
+        {prefix}_free(ptr);
         exit(1);
     }}
     if(coyaml_cli_parse(argc, argv, &cfg_cmdline, ptr) < 0) {{
         if(errno > ECOYAML_MAX || errno < ECOYAML_MIN)
             perror(argv[0]);
         // else, error is already printed by coyaml
+        {prefix}_free(ptr);
         exit((errno == ECOYAML_CLI_EXIT) ? 0 : 1);
     }}
     return ptr;
@@ -528,6 +536,9 @@ Options:
                 if t is None:
                     continue
                 t.index = i
+        if 'Struct' in self.types:
+            for t in self.types['Struct']:
+                t.usertype = self.cfg.types[t.typename].ctype
 
     def print(self):
         for line in self.lines:
