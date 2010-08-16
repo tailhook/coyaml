@@ -20,6 +20,7 @@ typedef int bool;
 
 typedef struct coyaml_head_s {
     struct obstack pieces;
+    bool free_object;
 } coyaml_head_t;
 
 typedef struct coyaml_arrayel_head_s {

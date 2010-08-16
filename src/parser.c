@@ -65,8 +65,6 @@ typedef struct coyaml_parseinfo_s {
 #define COYAML_DEBUG(message, ...) if(info->debug) { \
     fprintf(stderr, "COYAML: " message "\n", ##__VA_ARGS__); }
 
-#define obstack_chunk_alloc malloc
-#define obstack_chunk_free free
 #define obstack_alloc_failed_handler() longjmp(info->recover);
 
 static char *yaml_event_names[] = {
@@ -239,7 +237,6 @@ int coyaml_readfile(char *filename, coyaml_group_t *root,
     sinfo.anchor_count = 0;
     sinfo.anchor_event_count = 0;
     sinfo.event.type = YAML_NO_EVENT;
-    obstack_init(&sinfo.head->pieces);
 
     coyaml_parseinfo_t *info = &sinfo;
     COYAML_DEBUG("Opening filename");

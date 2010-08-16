@@ -19,3 +19,6 @@ def varname(value):
     if value in reserved:
         value = value + '_'
     return value
+
+def cstring(val):
+    return '"{0}"'.format(repr(val)[1:-1].replace('"', r'\"'))

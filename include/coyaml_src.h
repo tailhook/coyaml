@@ -13,6 +13,9 @@
 #define COYAML_CLI_PRINT (COYAML_CLI_RESERVED)
 #define COYAML_CLI_CHECK (COYAML_CLI_RESERVED+1)
 
+#define obstack_chunk_alloc malloc
+#define obstack_chunk_free free
+
 #ifndef COYAML_PARSEINFO
 typedef struct coyaml_parseinfo_s {
 } coyaml_parseinfo_t;
@@ -82,14 +85,14 @@ typedef struct coyaml_float_s {
 } coyaml_float_t;
 
 typedef struct coyaml_array_s {
-    int elementoffset;
+    int baseoffset;
     coyaml_state_fun element_callback;
 } coyaml_array_t;
 
 typedef struct coyaml_mapping_s {
-    int keyoffset;
+    int baseoffset;
+    int keylength;
     coyaml_state_fun key_callback;
-    int valueoffset;
     coyaml_state_fun value_callback;
 } coyaml_mapping_t;
 

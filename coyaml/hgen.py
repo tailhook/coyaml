@@ -2,6 +2,11 @@
 from . import load
 from .util import varname
 
+class Head(object):
+    def __init__(self, name):
+        self.name = name
+        self.type = self
+
 ctypes = {
     load.Int: 'long',
     load.UInt: 'size_t',
@@ -10,6 +15,7 @@ ctypes = {
     load.String: 'char',
     load.File: 'char',
     load.Dir: 'char',
+    Head: 'coyaml_head_t',
     }
 
 def ctypename(typ):
@@ -76,8 +82,11 @@ class StructureDef(object):
         else:
             self.fields = fields
 
-    def add_field(self, f):
-        self.fields.append(f)
+    def add_field(self, f, first=False):
+        if first:
+            self.fields.insert(0, f)
+        else:
+            self.fields.append(f)
 
     def format(self, prefix):
         lines = ['typedef struct %s_%s_s {' % (prefix, self.name)]
@@ -117,6 +126,7 @@ class GenHCode(object):
     def __init__(self, cfg):
         self.cfg = cfg
         self.main = self.mkstruct('main', cfg.data)
+        self.main.add_field(Head('head'), first=True)
         self.usertypes = [
             self.mkstruct(sname, struct.members)
             for sname, struct in cfg.types.items()
@@ -149,6 +159,12 @@ class GenHCode(object):
         self.lines.append('coyaml_cmdline_t {0}_cmdline;'
             .format(self.cfg.name))
         self.lines.append('bool {0}_readfile(char *, {0}_main_t *, bool debug);'
+            .format(self.cfg.name))
+        self.lines.append('{0}_main_t *{0}_init({0}_main_t *);'
+            .format(self.cfg.name))
+        self.lines.append('void {0}_free({0}_main_t *);'
+            .format(self.cfg.name))
+        self.lines.append('{0}_main_t *{0}_load({0}_main_t *, int, char**);'
             .format(self.cfg.name))
 
     def mkstruct(self, name, dic):
