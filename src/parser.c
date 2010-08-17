@@ -371,6 +371,13 @@ int coyaml_CMapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *targe
     while(info->event.type != YAML_MAPPING_END_EVENT) {
         coyaml_mappingel_head_t *newel = obstack_alloc(&info->head->pieces,
             def->element_size);
+        bzero(newel, def->element_size);
+        if(def->key_defaults) {
+            def->key_defaults(newel+*(int *)def->key_prop);
+        }
+        if(def->value_defaults) {
+            def->value_defaults(newel+*(int *)def->value_prop);
+        }
         CHECK(def->key_callback(info, def->key_prop, newel));
         CHECK(def->value_callback(info, def->value_prop, newel));
         if(!lastel) {
@@ -394,6 +401,10 @@ int coyaml_CArray(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
     while(info->event.type != YAML_SEQUENCE_END_EVENT) {
         coyaml_arrayel_head_t *newel = obstack_alloc(&info->head->pieces,
             def->element_size);
+        bzero(newel, def->element_size);
+        if(def->element_defaults) {
+            def->element_defaults((char *)newel+*(int *)def->element_prop);
+        }
         CHECK(def->element_callback(info, def->element_prop, newel));
         if(!lastel) {
             *(void **)((char *)target+def->baseoffset) = newel;

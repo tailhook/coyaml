@@ -28,6 +28,7 @@ typedef int (*coyaml_state_fun)(coyaml_parseinfo_t *info,
     void *prop, void *target);
 typedef int (*coyaml_option_fun)(coyaml_parseinfo_t *info,
     void *prop, void *target);
+typedef void (*coyaml_defaults_fun)(void *target);
 
 typedef struct coyaml_transition_s {
     char *symbol;
@@ -40,6 +41,7 @@ typedef struct coyaml_tag_s {
     int tagvalue;
 } coyaml_tag_t;
 
+// `baseoffset` must be first everywhere
 typedef struct coyaml_group_s {
     int baseoffset;
     int bitmask;
@@ -89,6 +91,7 @@ typedef struct coyaml_array_s {
     int baseoffset;
     int element_size;
     void *element_prop;
+    coyaml_defaults_fun element_defaults;
     coyaml_state_fun element_callback;
 } coyaml_array_t;
 
@@ -99,6 +102,8 @@ typedef struct coyaml_mapping_s {
     void *value_prop;
     coyaml_state_fun key_callback;
     coyaml_state_fun value_callback;
+    coyaml_defaults_fun key_defaults;
+    coyaml_defaults_fun value_defaults;
 } coyaml_mapping_t;
 
 typedef struct coyaml_file_s {

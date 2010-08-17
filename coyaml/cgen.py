@@ -117,6 +117,7 @@ class CArray(CStruct):
         ('element_size', None),
         ('element_prop', CStruct),
         ('element_callback', None),
+        ('element_defaults', None),
         )
 
     @property
@@ -133,6 +134,8 @@ class CMapping(CStruct):
         ('value_prop', CStruct),
         ('key_callback', None),
         ('value_callback', None),
+        ('key_defaults', None),
+        ('value_defaults', None),
         )
 
     @property
@@ -142,6 +145,7 @@ class CMapping(CStruct):
     @property
     def value_callback(self):
         return '(coyaml_state_fun)&coyaml_' + self.value_prop.__class__.__name__
+
 
 class CFile(CStruct):
     ctype = 'coyaml_file_t'
@@ -308,8 +312,10 @@ class GenCCode(object):
             'static coyaml_custom_t '+self.cfg.name+'_CCustom_vars[];',
             ]
         self.printerlines = []
+        self.defaultfuncs = defaultdict(list)
         self.types = defaultdict(list)
         self.visit_hier()
+        self.make_defaultfuncs()
         self.type_visitor(cfg.data)
         self.types['dict'].reverse() # Root item must be first
         for k, t in cfg.types.items():
@@ -355,6 +361,7 @@ bool {prefix}_readfile(char *filename, {prefix}_main_t *target, bool debug) {{
         res->head.free_object = TRUE;
     }}
     obstack_init(&res->head.pieces);
+    {prefix}_defaults_main(ptr);
     return res;
 }}
 void {prefix}_free({prefix}_main_t *ptr) {{
@@ -499,12 +506,20 @@ Options:
         elif item.__class__ in placeholders:
             item.struct_name = struct_name
             item.member_path = mem
+            if hasattr(item, 'default_'):
+                if isinstance(item, (load.File, load.String, load.Dir)):
+                    val = cstring(item.default_)
+                else:
+                    val = str(item.default_)
+                self.defaultfuncs[struct_name].append((mem, val))
         elif isinstance(item, load.Struct):
             item.struct_name = struct_name
             item.member_path = mem
             sname = self.cfg.name+'_'+item.type+'_t'
             for k, v in self.cfg.types[item.type].members.items():
                 self._visit_hier(v, sname, varname(k))
+            self.defaultfuncs[sname]
+            self.defaultfuncs[struct_name].append((mem, sname))
         elif isinstance(item, load.Mapping):
             item.struct_name = struct_name
             item.member_path = mem
@@ -591,14 +606,23 @@ Options:
                 self.cfg.name, ctypename(data.key_element),
                     ctypename(data.value_element))
             res.key_prop = self.type_visitor(data.key_element, path+('key',))
+            if isinstance(res.key_prop, CCustom):
+                res.key_defaults = '(coyaml_defaults_fun)&{0}_defaults_{1}'\
+                    .format(self.cfg.name, ctypename(data.key_element))
             res.value_prop = self.type_visitor(data.value_element,
                 path+('value',))
+            if isinstance(res.value_prop, CCustom):
+                res.value_defaults = '(coyaml_defaults_fun)&{0}_defaults_{1}'\
+                    .format(self.cfg.name, ctypename(data.value_element))
             self.types['Mapping'].append(res)
         elif isinstance(data, load.Array):
             res = CArray(data)
             res.element_size = 'sizeof({0}_a_{1}_t)'.format(
                 self.cfg.name, ctypename(data.element))
             res.element_prop = self.type_visitor(data.element, path+('value',))
+            if isinstance(res.element_prop, CCustom):
+                res.element_defaults = '(coyaml_defaults_fun)&{0}_defaults_{1}'\
+                    .format(self.cfg.name, ctypename(data.element))
             self.types['Array'].append(res)
         elif isinstance(data, dict):
             children = []
@@ -626,6 +650,32 @@ Options:
         if 'Struct' in self.types:
             for t in self.types['Struct']:
                 t.usertype = self.cfg.types[t.typename].ctype
+
+    def make_defaultfuncs(self):
+        self.lines.append('')
+        for k, lst in self.defaultfuncs.items():
+            self.lines.append('void {prefix}_defaults_{1}'
+                '({0} *target);'.format(k, k[len(self.cfg.name)+1:-2],
+                prefix=self.cfg.name))
+        self.lines.append('')
+        for k, lst in self.defaultfuncs.items():
+            if '_a_' in k or '_m_' in k:
+                continue
+            self.lines.append('void {prefix}_defaults_{1}'
+                '({0} *target) {{'.format(k, k[len(self.cfg.name)+1:-2],
+                prefix=self.cfg.name))
+            uniq = set()
+            for mem, val in lst:
+                if mem in uniq:
+                    continue
+                uniq.add(mem)
+                if val in self.defaultfuncs:
+                    self.lines.append('    {prefix}_defaults_{0}(&target->{1});'
+                        .format(val[len(self.cfg.name)+1:-2], mem,
+                            prefix=self.cfg.name))
+                else:
+                    self.lines.append('    target->{0} = {1};'.format(mem, val))
+            self.lines.append('}')
 
     def print(self):
         for line in self.lines:

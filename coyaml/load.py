@@ -29,7 +29,7 @@ yaml.add_constructor('tag:yaml.org,2002:map',
 class YamlyType(yaml.YAMLObject):
 
     def __init__(self, default=None):
-        self.default = default
+        self.default_ = default
 
     @classmethod
     def from_yaml(cls, Loader, node):
@@ -46,7 +46,7 @@ class YamlyType(yaml.YAMLObject):
         for k, v in state.items():
             setattr(self, varname(k), v)
         if default is not None:
-            self.default = default
+            self.default_ = default
 
 class Int(YamlyType):
     yaml_tag = '!Int'

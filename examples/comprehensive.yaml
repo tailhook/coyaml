@@ -38,8 +38,6 @@ __types__:
     headers: !Mapping
       key-element: !String ""
       value-element: !String ""
-      default:
-        X-Config: coyaml
     body: !String |
       <!DOCTYPE html>
       <html>
@@ -68,9 +66,6 @@ SimpleHTTPServer:
     command-line: [ -l, --log-file ]
   listen: !Struct
     =: listenaddr
-    default:
-        host: localhost
-        port: 80
     command-line: [ -a, --listen-addr]
     description: >
       Listen for specified address
@@ -89,9 +84,6 @@ SimpleHTTPServer:
   extra-headers: !Mapping
     key-element: !String ""
     value-element: !String ""
-    default:
-      X-Hello: World
-      X-Fun: The real one
     description: >
       Headers to add to reply
   http-forward: !Array
