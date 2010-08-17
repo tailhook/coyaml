@@ -87,12 +87,16 @@ typedef struct coyaml_float_s {
 
 typedef struct coyaml_array_s {
     int baseoffset;
+    int element_size;
+    void *element_prop;
     coyaml_state_fun element_callback;
 } coyaml_array_t;
 
 typedef struct coyaml_mapping_s {
     int baseoffset;
-    int keylength;
+    int element_size;
+    void *key_prop;
+    void *value_prop;
     coyaml_state_fun key_callback;
     coyaml_state_fun value_callback;
 } coyaml_mapping_t;

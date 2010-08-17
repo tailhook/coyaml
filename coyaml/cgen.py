@@ -4,6 +4,21 @@ from collections import defaultdict
 from . import load, core
 from .util import varname, cstring
 
+hctypes = {
+    load.Int: 'long',
+    load.UInt: 'size_t',
+    load.Float: 'double',
+    load.Bool: 'int',
+    load.String: 'char',
+    load.File: 'char',
+    load.Dir: 'char',
+    }
+
+def ctypename(typ):
+    if isinstance(typ, load.Struct):
+        return typ.type
+    return hctypes[typ.__class__]
+
 class ArrayVal(object):
     def __init__(self, value):
         self.value = list(value)
@@ -97,9 +112,36 @@ class CBool(CStruct):
 
 class CArray(CStruct):
     ctype = 'coyaml_array_t'
+    bitmask = False
+    fields = (
+        ('element_size', None),
+        ('element_prop', CStruct),
+        ('element_callback', None),
+        )
+
+    @property
+    def element_callback(self):
+        return '(coyaml_state_fun)&coyaml_' \
+            + self.element_prop.__class__.__name__
 
 class CMapping(CStruct):
     ctype = 'coyaml_mapping_t'
+    bitmask = False
+    fields = (
+        ('element_size', None),
+        ('key_prop', CStruct),
+        ('value_prop', CStruct),
+        ('key_callback', None),
+        ('value_callback', None),
+        )
+
+    @property
+    def key_callback(self):
+        return '(coyaml_state_fun)&coyaml_' + self.key_prop.__class__.__name__
+
+    @property
+    def value_callback(self):
+        return '(coyaml_state_fun)&coyaml_' + self.value_prop.__class__.__name__
 
 class CFile(CStruct):
     ctype = 'coyaml_file_t'
@@ -260,6 +302,10 @@ class GenCCode(object):
             'static coyaml_transition_t '+self.cfg.name+'_CTransition_vars[];',
             'static coyaml_usertype_t '+self.cfg.name+'_CUsertype_vars[];',
             'static coyaml_group_t '+self.cfg.name+'_CGroup_vars[];',
+            'static coyaml_string_t '+self.cfg.name+'_CString_vars[];',
+            'static coyaml_int_t '+self.cfg.name+'_CInt_vars[];',
+            'static coyaml_uint_t '+self.cfg.name+'_CUInt_vars[];',
+            'static coyaml_custom_t '+self.cfg.name+'_CCustom_vars[];',
             ]
         self.printerlines = []
         self.types = defaultdict(list)
@@ -462,13 +508,17 @@ Options:
         elif isinstance(item, load.Mapping):
             item.struct_name = struct_name
             item.member_path = mem
-            # TODO
-            pass
+            self._visit_hier(item.key_element, '{0}_m_{1}_{2}_t'.format(
+                self.cfg.name, ctypename(item.key_element),
+                    ctypename(item.value_element)), 'key')
+            self._visit_hier(item.value_element, '{0}_m_{1}_{2}_t'.format(
+                self.cfg.name, ctypename(item.key_element),
+                    ctypename(item.value_element)), 'value')
         elif isinstance(item, load.Array):
             item.struct_name = struct_name
             item.member_path = mem
-            # TODO
-            pass
+            self._visit_hier(item.element, '{0}_a_{1}_t'.format(
+                self.cfg.name, ctypename(item.element)), 'value')
         else:
             raise NotImplementedError(item)
 
@@ -487,23 +537,45 @@ Options:
             self._printerline('{0}{1}: {2}\n'.format(ws, name,
                 placeholders[item.__class__]), mem)
         elif isinstance(item, load.Struct):
-            self._printerline('{0}{1}:\n'.format(ws, name))
+            if name is not None:
+                self._printerline('{0}{1}:\n'.format(ws, name))
             for k, v in self.cfg.types[item.type].members.items():
                 self._make_printer(v, k, ws+'  ', mem+'.'+varname(k))
         elif isinstance(item, load.Mapping):
-            self.printerlines.append('// MAPPING')
+            self._printerline('{0}{1}:\n'.format(ws, name))
+            self.printerlines.append(
+                '    for({prefix}_m_{0}_{1}_t *item={2}; item; item = item->head.next) {{'
+                .format(ctypename(item.key_element),
+                ctypename(item.value_element), mem, prefix=self.cfg.name))
+            if(not isinstance(item.key_element, load.Struct)
+                and not isinstance(item.value_element, load.Struct)):
+                self._printerline(ws + '  {0}: {1}\n'.format(
+                    placeholders[item.key_element.__class__],
+                    placeholders[item.value_element.__class__]),
+                    'item->key', 'item->value', ws='        ')
+            else:
+                raise NotImplementedError(item.key_element, item.value_element)
+            self.printerlines.append('    }')
         elif isinstance(item, load.Array):
-            self.printerlines.append('// ARRAY')
+            self._printerline('{0}{1}:\n'.format(ws, name))
+            self.printerlines.append(
+                '    for({prefix}_a_{0}_t *item={1}; item; item = item->head.next) {{'
+                .format(ctypename(item.element), mem, prefix=self.cfg.name))
+            if not isinstance(item.element, load.Struct):
+                self._printerline(ws + '- {0}\n'.format(
+                    placeholders[item.element.__class__]),
+                    'item->value', ws='        ')
+            else:
+                self._printerline(ws + '-\n', ws='        ')
+                self._make_printer(item.element, None,
+                    ws+'  ', 'item->value');
+            self.printerlines.append('    }')
         else:
             raise NotImplementedError(item)
 
-    def _printerline(self, s, mem=None):
-        if mem is not None:
-            self.printerlines.append('    fprintf(output, {0}, {1});'
-                .format(cstring(s), mem))
-        else:
-            self.printerlines.append('    fprintf(output, {0});'
-                .format(cstring(s)))
+    def _printerline(self, s, *mems, ws='    '):
+            self.printerlines.append('{0}fprintf(output, {1}{2});'
+                .format(ws, cstring(s), ''.join(', '+m for m in mems)))
 
     def type_visitor(self, data, path=()):
         data.path = path
@@ -513,6 +585,21 @@ Options:
             child = self.type_visitor(mem, path=path)
             res = CUsertype(data, child, path=path)
             self.types['Usertype'].append(res)
+        elif isinstance(data, load.Mapping):
+            res = CMapping(data)
+            res.element_size = 'sizeof({0}_m_{1}_{2}_t)'.format(
+                self.cfg.name, ctypename(data.key_element),
+                    ctypename(data.value_element))
+            res.key_prop = self.type_visitor(data.key_element, path+('key',))
+            res.value_prop = self.type_visitor(data.value_element,
+                path+('value',))
+            self.types['Mapping'].append(res)
+        elif isinstance(data, load.Array):
+            res = CArray(data)
+            res.element_size = 'sizeof({0}_a_{1}_t)'.format(
+                self.cfg.name, ctypename(data.element))
+            res.element_prop = self.type_visitor(data.element, path+('value',))
+            self.types['Array'].append(res)
         elif isinstance(data, dict):
             children = []
             for k, v in data.items():

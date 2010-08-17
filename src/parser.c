@@ -364,9 +364,46 @@ int coyaml_CCustom(coyaml_parseinfo_t *info, coyaml_custom_t *def, void *target)
 }
 
 int coyaml_CMapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *target) {
-    COYAML_ASSERT(!"Not implemented");
+    COYAML_DEBUG("Entering CMapping");
+    SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
+    CHECK(coyaml_next(info));
+    coyaml_mappingel_head_t *lastel = NULL;
+    while(info->event.type != YAML_MAPPING_END_EVENT) {
+        coyaml_mappingel_head_t *newel = obstack_alloc(&info->head->pieces,
+            def->element_size);
+        CHECK(def->key_callback(info, def->key_prop, newel));
+        CHECK(def->value_callback(info, def->value_prop, newel));
+        if(!lastel) {
+            *(void **)((char *)target+def->baseoffset) = newel;
+        } else {
+            lastel->next = newel;
+        }
+        lastel = newel;
+    }
+    SYNTAX_ERROR(info->event.type == YAML_MAPPING_END_EVENT);
+    CHECK(coyaml_next(info));
+    COYAML_DEBUG("Leaving CMapping");
+    return 0;
 }
 
 int coyaml_CArray(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
-    COYAML_ASSERT(!"Not implemented");
+    COYAML_DEBUG("Entering CArray");
+    SYNTAX_ERROR(info->event.type == YAML_SEQUENCE_START_EVENT);
+    CHECK(coyaml_next(info));
+    coyaml_mappingel_head_t *lastel = NULL;
+    while(info->event.type != YAML_SEQUENCE_END_EVENT) {
+        coyaml_arrayel_head_t *newel = obstack_alloc(&info->head->pieces,
+            def->element_size);
+        CHECK(def->element_callback(info, def->element_prop, newel));
+        if(!lastel) {
+            *(void **)((char *)target+def->baseoffset) = newel;
+        } else {
+            lastel->next = newel;
+        }
+        lastel = newel;
+    }
+    SYNTAX_ERROR(info->event.type == YAML_SEQUENCE_END_EVENT);
+    CHECK(coyaml_next(info));
+    COYAML_DEBUG("Leaving CArray");
+    return 0;
 }
