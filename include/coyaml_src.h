@@ -26,8 +26,7 @@ typedef int (*coyaml_convert_fun)(coyaml_parseinfo_t *info,
     void *prop, void *target);
 typedef int (*coyaml_state_fun)(coyaml_parseinfo_t *info,
     void *prop, void *target);
-typedef int (*coyaml_option_fun)(coyaml_parseinfo_t *info,
-    void *prop, void *target);
+typedef int (*coyaml_option_fun)(char *value, void *prop, void *target);
 typedef void (*coyaml_defaults_fun)(void *target);
 
 typedef struct coyaml_transition_s {
@@ -155,7 +154,11 @@ int coyaml_CCustom(coyaml_parseinfo_t *info,
     coyaml_custom_t *prop, void *target);
 
 int coyaml_CInt_o(char *value, coyaml_int_t *prop, void *target);
+int coyaml_CInt_incr_o(char *value, coyaml_int_t *prop, void *target);
+int coyaml_CInt_decr_o(char *value, coyaml_int_t *prop, void *target);
 int coyaml_CUInt_o(char *value, coyaml_uint_t *prop, void *target);
+int coyaml_CUInt_incr_o(char *value, coyaml_uint_t *prop, void *target);
+int coyaml_CUInt_incr_o(char *value, coyaml_uint_t *prop, void *target);
 int coyaml_Bool_o(char *value, coyaml_bool_t *prop, void *target);
 int coyaml_CFloat_o(char *value, coyaml_float_t *prop, void *target);
 int coyaml_CFile_o(char *value, coyaml_file_t *prop, void *target);

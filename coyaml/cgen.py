@@ -433,7 +433,10 @@ void {prefix}_free({prefix}_main_t *ptr) {{
             opt.index = len(options)
             options.append(COption(
                 '(coyaml_option_fun)&coyaml_'
-                    +opt.target.ctype.__class__.__name__+'_o',
+                    +opt.target.ctype.__class__.__name__
+                    +( '' if opt.__class__ is core.Option
+                      else '_'+opt.__class__.__name__[:-len('Option')].lower())
+                    +'_o',
                 opt.target.ctype))
         self.lines.extend(COption.array(options).format(self.cfg.name))
         self.lines.append('')

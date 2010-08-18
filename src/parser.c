@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <setjmp.h>
 #include <obstack.h>
+#include <strings.h>
 
 #define COYAML_PARSEINFO
 
@@ -397,7 +398,7 @@ int coyaml_CArray(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
     COYAML_DEBUG("Entering CArray");
     SYNTAX_ERROR(info->event.type == YAML_SEQUENCE_START_EVENT);
     CHECK(coyaml_next(info));
-    coyaml_mappingel_head_t *lastel = NULL;
+    coyaml_arrayel_head_t *lastel = NULL;
     while(info->event.type != YAML_SEQUENCE_END_EVENT) {
         coyaml_arrayel_head_t *newel = obstack_alloc(&info->head->pieces,
             def->element_size);

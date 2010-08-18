@@ -53,8 +53,12 @@ int coyaml_cli_parse(int argc, char **argv, coyaml_cmdline_t *cmdline,
             opt = cmdline->optidx[pos - cmdline->optstr];
         }
         if(opt >= COYAML_CLI_USER) {
-            //TODO: Dispatch user callbacks
-            printf("USER OPTION %d\n", opt);
+            coyaml_option_t *o = &cmdline->coyaml_options[opt-COYAML_CLI_USER];
+            if(o->callback(optarg, o->prop, target) < 0) {
+                fprintf(stderr, cmdline->usage);
+                errno = ECOYAML_CLI_WRONG_OPTION;
+                return -1;
+            }
         } else if(opt >= COYAML_CLI_RESERVED) {
             switch(opt) {
             case COYAML_CLI_PRINT:
@@ -108,6 +112,24 @@ int coyaml_CUInt_o(char *value, coyaml_uint_t *def, void *target) {
     *(unsigned *)(((char *)target)+def->baseoffset) = val;
     return 0;
 }
+
+int coyaml_CInt_incr_o(char *value, coyaml_int_t *def, void *target) {
+    ++*(int *)(((char *)target)+def->baseoffset);
+    return 0;
+}
+int coyaml_CInt_decr_o(char *value, coyaml_int_t *def, void *target) {
+    --*(int *)(((char *)target)+def->baseoffset);
+    return 0;
+}
+int coyaml_CUInt_incr_o(char *value, coyaml_uint_t *def, void *target) {
+    ++*(unsigned *)(((char *)target)+def->baseoffset);
+    return 0;
+}
+int coyaml_CUInt_decr_o(char *value, coyaml_uint_t *def, void *target) {
+    --*(unsigned *)(((char *)target)+def->baseoffset);
+    return 0;
+}
+
 int coyaml_CFile_o(char *value, coyaml_file_t *def, void *target) {
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
         &((coyaml_head_t *)target)->pieces, value, strlen(value));
