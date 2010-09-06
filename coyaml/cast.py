@@ -2,13 +2,23 @@ import re
 from .textast import Node, VSpace, CList, lazy, Ast
 from collections import OrderedDict
 
+__ast__ = [
+    'Ident',
+    'Typename',
+    'CommentBlock',
+    'StdInclude',
+    'Var',
+    'Struct',
+    'TypeDef',
+    ]
+
 class Ident(Node):
     __slots__ = OrderedDict([
         ('value', str),
         ])
     re_ident = re.compile('^[a-zA-Z_][0-9a-zA-Z_]*$')
     def __init__(self, value):
-        assert self.re_ident.match(value)
+        assert self.re_ident.match(value), value
         self.value = value
 
 class Typename(Node):
@@ -23,29 +33,31 @@ class Typename(Node):
         struct\s+\w+
         $''', re.X)
     def __init__(self, value):
-        assert self.re_typename.match(value)
-        self.value = value
+        super(Typename, self).__init__(value)
+        assert self.re_typename.match(self.value), self.value
+
+_type = (Typename, lazy.Struct, lazy.AnonStruct)
 
 class CommentBlock(Node):
     __slots__ = OrderedDict([
-        ('lines', str),
+        ('lines', CList(str)),
         ])
     top = True
     each_line = '/* {0:s} */'
 
     def __init__(self, *lines):
-        self.lines = lines
+        super(CommentBlock, self).__init__(lines)
 
 class StdInclude(Node):
     __slots__ = OrderedDict([
         ('filename', str),
         ])
     top = True
-    line_format = '#include <{filename:s}>'
+    line_format = '#include <{filename}>'
 
 class Var(Node):
     __slots__ = OrderedDict([
-        ('type', (Typename, lazy.Struct)),
+        ('type', _type),
         ('name', Ident),
         ])
     top = True
@@ -60,9 +72,17 @@ class Struct(Node):
     block_start = 'struct {name} {{'
     block_end = '}}'
 
+class AnonStruct(Node):
+    __slots__ = OrderedDict([
+        ('body', CList(Var)),
+        ])
+    top = True
+    block_start = 'struct {{'
+    block_end = '}}'
+
 class TypeDef(Node):
     __slots__ = OrderedDict([
-        ('definition', (Typename, Struct)),
+        ('definition', _type),
         ('name', Ident),
         ])
     top = True
@@ -78,9 +98,8 @@ if __name__ == '__main__':
             ))
         ast(StdInclude('coyaml_hdr.h'))
         ast(VSpace())
-        with ast.body(Struct('test_s')) as st:
-            ast(Var(Typename('int'), 'intval'))
-            ast(Var(Typename('unsigned long'), 'longval'))
-            ast(Var(Typename('const char *'), 'stringval'))
-        ast(TypeDef(st, 'test_t'))
+        with ast(TypeDef(Struct('test_s', ast.block()),'test_t')) as ch:
+            ch(Var(Typename('int'), 'intval'))
+            ch(Var(Typename('unsigned long'), 'longval'))
+            ch(Var(Typename('const char *'), 'stringval'))
     print(str(Ast(sample)))
