@@ -21,9 +21,8 @@ class Node(object):
         if isinstance(val, _FutureChildren):
             self._futures.append(val)
             val = val.content
-        elif isinstance(typ, CList):
-            assert isinstance(val, (list, tuple)), val
-            assert all(isinstance(i, typ.subtypes) for i in val), val
+        elif isinstance(typ, ListConstraint):
+            val = List(typ, val)
         elif not isinstance(val, typ):
             if isinstance(typ, tuple):
                 val = typ[0](val)
@@ -75,10 +74,25 @@ class VSpace(Node):
         stream.write('\n')
         stream.line_start = True
 
-class CList(object):
-    __slots__ = ('subtypes')
-    def __init__(self, *subtypes):
+class ListConstraint(object):
+    __slots__ = ('subtypes', 'separator')
+    def __init__(self, *subtypes, separator=', '):
         self.subtypes = subtypes
+        self.separator = separator
+
+class List(list):
+    __slots__ = ('type',)
+    def __init__(self, typ, *args):
+        self.type = typ
+        super(List, self).__init__(*args)
+
+    def format(self, stream):
+        if self:
+            self[0].format(stream)
+            for i in self[1:]:
+                stream.write(', ')
+                i.format(stream)
+
 
 class _LazyRef(object):
     __slots__ = ('name',)

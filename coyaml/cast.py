@@ -1,5 +1,5 @@
 import re
-from .textast import Node, VSpace, CList, lazy, Ast
+from .textast import Node, VSpace, ListConstraint as List, lazy, Ast
 from collections import OrderedDict
 
 __ast__ = [
@@ -8,6 +8,7 @@ __ast__ = [
     'CommentBlock',
     'StdInclude',
     'Var',
+    'Param',
     'Struct',
     'TypeDef',
     ]
@@ -37,11 +38,15 @@ class Typename(Node):
         super(Typename, self).__init__(value)
         assert self.re_typename.match(self.value), self.value
 
-_type = (Typename, lazy.Struct, lazy.AnonStruct)
+class Void(Node):
+    __slots__ = {}
+    line_format = 'void'
+
+_type = (Typename, Void, lazy.Struct, lazy.AnonStruct)
 
 class CommentBlock(Node):
     __slots__ = OrderedDict([
-        ('lines', CList(str)),
+        ('lines', List(str)),
         ])
     top = True
     each_line = '/* {0:s} */'
@@ -64,10 +69,17 @@ class Var(Node):
     top = True
     line_format = '{type} {name};'
 
+class Param(Node):
+    __slots__ = OrderedDict([
+        ('type', _type),
+        ('name', Ident),
+        ])
+    line_format = '{type} {name}'
+
 class Struct(Node):
     __slots__ = OrderedDict([
         ('name', Ident),
-        ('body', CList(Var)),
+        ('body', List(Var)),
         ])
     top = True
     block_start = 'struct {name} {{'
@@ -75,7 +87,7 @@ class Struct(Node):
 
 class AnonStruct(Node):
     __slots__ = OrderedDict([
-        ('body', CList(Var)),
+        ('body', List(Var)),
         ])
     top = True
     block_start = 'struct {{'
@@ -88,6 +100,15 @@ class TypeDef(Node):
         ])
     top = True
     line_format = 'typedef {definition} {name};'
+
+class Func(Node):
+    __slots__ = OrderedDict([
+        ('type', _type),
+        ('name', Ident),
+        ('items', List(Var)),
+        ])
+    top = True
+    line_format = '{type} {name}({items});'
 
 lazy.fix(globals())
 

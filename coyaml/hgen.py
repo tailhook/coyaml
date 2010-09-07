@@ -4,11 +4,6 @@ from .util import varname
 from .cast import *
 from .textast import VSpace
 
-class Head(object):
-    def __init__(self, name):
-        self.name = name
-        self.type = self
-
 ctypes = {
     load.Int: 'long',
     load.UInt: 'size_t',
@@ -26,121 +21,12 @@ def ctypename(typ):
         return typ.type
     return ctypenames[typ.__class__]
 
-def ctypedecl(typ, prefix, name, ws=''):
-    if isinstance(typ, load.Struct):
-        yield "{0}struct {1}_{2}_s {3};".format(ws, prefix, typ.type, name)
-        return
-    ctype = ctypename(typ)
-    if ctype in ('char', 'array', 'mapping'):
-        yield '{0}{1} *{2};'.format(
-            ws, ctype, varname(name))
-        yield '{0}size_t {1}_len;'.format(
-            ws, varname(name))
-    else:
-        yield '{0}{1} {2};'.format(
-            ws, ctype, varname(name))
-
-class Field(object):
-    def __init__(self, name, type):
-        self.name = name
-        self.type = type
-        self.raw_type = type.__class__
-
-class Array(object):
-    def __init__(self, element):
-        self.element = element
-
-    def format(self, prefix):
-        lines = ['typedef struct {0}_a_{1}_s {{'
-            .format(prefix, ctypename(self.element))]
-        lines.append('    coyaml_arrayel_head_t head;')
-        lines.extend(ctypedecl(self.element, prefix, 'value', '    '))
-        lines.append('}} {0}_a_{1}_t;'.format(prefix,
-            ctypename(self.element)))
-        return lines
-
-class Mapping(object):
-    def __init__(self, keyel, valel):
-        self.key_element = keyel
-        self.value_element = valel
-
-    def format(self, prefix):
-        lines = ['typedef struct {0}_m_{1}_{2}_s {{'
-            .format(prefix, ctypename(self.key_element),
-            ctypename(self.value_element))]
-        lines.append('    coyaml_mappingel_head_t head;')
-        lines.extend(ctypedecl(self.key_element, prefix, 'key', '    '))
-        lines.extend(ctypedecl(self.value_element, prefix, 'value', '    '))
-        lines.append('}} {0}_m_{1}_{2}_t;'.format(prefix,
-            ctypename(self.key_element),
-            ctypename(self.value_element)))
-        return lines
-
-class StructureDef(object):
-
-    def __init__(self, name, fields=None):
-        self.name = name
-        if fields is None:
-            self.fields = []
-        else:
-            self.fields = fields
-
-    def add_field(self, f, first=False):
-        if first:
-            self.fields.insert(0, f)
-        else:
-            self.fields.append(f)
-
-    def format(self, prefix):
-        lines = ['typedef struct %s_%s_s {' % (prefix, self.name)]
-        self.format_struct(self.fields, lines, cprefix=prefix)
-        lines.append('} %s_%s_t;' % (prefix, self.name))
-        return lines
-
-    def format_struct(self, items, lines, prefix='    ', cprefix=''):
-        for f in items:
-            if isinstance(f.type, dict):
-                lines.append(prefix + 'struct {')
-                self.format_struct(
-                    (Field(name, typ) for name, typ in f.type.items()), lines,
-                    prefix=prefix+'    ', cprefix=cprefix)
-                lines.append(prefix + '} ' + f.name + ';')
-            elif isinstance(f.type, load.Struct):
-                lines.append('{0}struct {1}_{2}_s {3};'.format(prefix,
-                    cprefix, f.type.type, varname(f.name)))
-            elif isinstance(f.type, load.Array):
-                lines.append('{0}struct {1}_a_{2}_s *{3};'.format(prefix,
-                    cprefix, ctypename(f.type.element),
-                    varname(f.name)))
-                lines.append('{0}size_t {1}_len;'.format(prefix,
-                    varname(f.name)))
-            elif isinstance(f.type, load.Mapping):
-                lines.append('{0}struct {1}_m_{2}_{3}_s *{4};'.format(prefix,
-                    cprefix, ctypename(f.type.key_element),
-                    ctypename(f.type.value_element),
-                    varname(f.name)))
-                lines.append('{0}size_t {1}_len;'.format(prefix,
-                    varname(f.name)))
-            else:
-                lines.extend(ctypedecl(f.type, prefix, f.name, prefix))
-
 class GenHCode(object):
 
     def __init__(self, cfg):
         self.cfg = cfg
         self.prefix = self.cfg.name
-        self.visited = set()
-#~         self.main = self.mkstruct('main', cfg.data)
-#~         self.usertypes = [
-#~             self.mkstruct(sname, struct.members)
-#~             for sname, struct in cfg.types.items()
-#~             ]
-#~         self.arrays = {}
-#~         self.mappings = {}
-#~         self.visit_complex(cfg.data)
-#~         for struct in cfg.types.items():
-#~             self.visit_complex(struct)
-#~         self.format()
+        self._visited = set()
 
     def make(self, ast):
         ast(CommentBlock(
@@ -158,6 +44,24 @@ class GenHCode(object):
         with ast(TypeDef(Struct(self.prefix+'_main_s', ast.block()),
             self.prefix+'_main_t')) as ms:
             self._struct_body(ms, self.cfg.data, root=ast)
+        ast(VSpace())
+        ast(Var(Typename('coyaml_cmdline_t'), self.prefix+'_cmdline'))
+        ast(Func(Typename('bool'), self.prefix+'_readfile', [
+            Param(Typename('char *'), 'filename'),
+            Param(Typename(self.prefix+'_main_t *'), 'filename'),
+            Param(Typename('bool'), 'debug'),
+            ]))
+        ast(Func(Typename(self.prefix+'_main_t *'), self.prefix+'_init', [
+            Param(Typename(self.prefix+'_main_t *'), 'target'),
+            ]))
+        ast(Func(Void(), self.prefix+'_free', [
+            Param(Typename(self.prefix+'_main_t *'), 'target'),
+            ]))
+        ast(Func(Typename(self.prefix+'_main_t *'), self.prefix+'_load', [
+            Param(Typename(self.prefix+'_main_t *'), 'target'),
+            Param(Typename('int'), 'argc'),
+            Param(Typename('char **'), 'argv'),
+            ]))
 
     def _simple_type(self, ast, typ, name):
         if isinstance(typ, load.Struct):
@@ -178,9 +82,9 @@ class GenHCode(object):
                     ctypename(v.key_element), ctypename(v.value_element))
                 ast(Var(Typename('struct '+tname+'_s *'), varname(k)))
                 ast(Var('size_t', varname(k)+'_len'))
-                if tname in self.visited:
+                if tname in self._visited:
                     continue
-                self.visited.add(tname)
+                self._visited.add(tname)
                 root(VSpace())
                 with root(TypeDef(Struct(tname+'_s', ast.block()),
                     tname+'_t')) as sub:
@@ -192,9 +96,9 @@ class GenHCode(object):
                     ctypename(v.element))
                 ast(Var(Typename('struct '+tname+'_s *'), varname(k)))
                 ast(Var('size_t', varname(k)+'_len'))
-                if tname in self.visited:
+                if tname in self._visited:
                     continue
-                self.visited.add(tname)
+                self._visited.add(tname)
                 root(VSpace())
                 with root(TypeDef(Struct(tname+'_s', ast.block()),
                     tname+'_t')) as sub:
@@ -202,53 +106,6 @@ class GenHCode(object):
                     self._simple_type(sub, v.element, 'value')
             else:
                 self._simple_type(ast, v, k)
-
-#~         self.alltypes = alltypes = []
-#~         for one in self.usertypes:
-#~             alltypes.append(one)
-#~         for one in self.arrays.values():
-#~             alltypes.append(one)
-#~         for one in self.mappings.values():
-#~             alltypes.append(one)
-#~         alltypes.append(self.main)
-#~         for one in self.alltypes:
-#~             self.lines.extend(one.format(self.cfg.name))
-#~             self.lines.append('')
-#~         self.lines.append('coyaml_cmdline_t {0}_cmdline;'
-#~             .format(self.cfg.name))
-#~         self.lines.append('bool {0}_readfile(char *, {0}_main_t *, bool debug);'
-#~             .format(self.cfg.name))
-#~         self.lines.append('{0}_main_t *{0}_init({0}_main_t *);'
-#~             .format(self.cfg.name))
-#~         self.lines.append('void {0}_free({0}_main_t *);'
-#~             .format(self.cfg.name))
-#~         self.lines.append('{0}_main_t *{0}_load({0}_main_t *, int, char**);'
-#~             .format(self.cfg.name))
-
-    def mkstruct(self, name, dic):
-        val = StructureDef(name)
-        for k, v in dic.items():
-            val.add_field(Field(k, v))
-        return val
-
-    def visit_complex(self, typ):
-        if isinstance(typ, load.Array):
-            if typ.element in self.arrays:
-                return
-            self.arrays[typ.element] = Array(typ.element)
-            return
-        elif isinstance(typ, load.Mapping):
-            if (typ.key_element, typ.value_element) in self.mappings:
-                return
-            self.mappings[typ.key_element, typ.value_element] = Mapping(
-                typ.key_element, typ.value_element)
-            return
-        if hasattr(typ, 'members'):
-            for m in typ.members.values():
-                self.visit_complex(m)
-        elif hasattr(typ, 'items'):
-            for m in typ.values():
-                self.visit_complex(m)
 
 def main():
     from .cli import simple
