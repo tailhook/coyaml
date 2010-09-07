@@ -15,12 +15,16 @@ ctypes = {
     load.Float: 'double',
     load.Bool: 'int',
     }
+ctypenames = {
+    load.String: 'string',
+    }
+ctypenames.update(ctypes)
 string_types = (load.File, load.String, load.Dir)
 
 def ctypename(typ):
     if isinstance(typ, load.Struct):
         return typ.type
-    return ctypes[typ.__class__]
+    return ctypenames[typ.__class__]
 
 def ctypedecl(typ, prefix, name, ws=''):
     if isinstance(typ, load.Struct):
@@ -125,6 +129,7 @@ class GenHCode(object):
     def __init__(self, cfg):
         self.cfg = cfg
         self.prefix = self.cfg.name
+        self.visited = set()
 #~         self.main = self.mkstruct('main', cfg.data)
 #~         self.usertypes = [
 #~             self.mkstruct(sname, struct.members)
@@ -144,26 +149,59 @@ class GenHCode(object):
             ))
         ast(StdInclude('coyaml_hdr.h'))
         ast(VSpace())
+        for sname, struct in self.cfg.types.items():
+            cname = self.prefix+'_'+sname
+            with ast(TypeDef(Struct(cname+'_s', ast.block()),
+                cname+'_t')) as s:
+                self._struct_body(s, struct.members, root=ast)
+            ast(VSpace())
         with ast(TypeDef(Struct(self.prefix+'_main_s', ast.block()),
             self.prefix+'_main_t')) as ms:
-            self._struct_body(ms, self.cfg.data)
+            self._struct_body(ms, self.cfg.data, root=ast)
 
-    def _struct_body(self, ast, dic):
+    def _simple_type(self, ast, typ, name):
+        if isinstance(typ, load.Struct):
+            ast(Var(Typename(self.prefix+'_'+typ.type+'_t'), varname(name)))
+        elif isinstance(typ, string_types):
+            ast(Var(Typename('char *'), varname(name)))
+            ast(Var(Typename('size_t'), varname(name)+'_len'))
+        else:
+            ast(Var(Typename(ctypes[typ.__class__]), varname(name)))
+
+    def _struct_body(self, ast, dic, root):
         for k, v in dic.items():
             if isinstance(v, dict):
                 with ast(Var(AnonStruct(ast.block()), k)) as ss:
-                    self._struct_body(ss, v)
-            elif isinstance(v, load.Struct):
-                ast(Var(Typename(self.prefix+'_'+v.type+'_t'), varname(k)))
+                    self._struct_body(ss, v, root=root)
             elif isinstance(v, load.Mapping):
-                pass
+                tname = '{0}_m_{1}_{2}'.format(self.prefix,
+                    ctypename(v.key_element), ctypename(v.value_element))
+                ast(Var(Typename('struct '+tname+'_s *'), varname(k)))
+                ast(Var('size_t', varname(k)+'_len'))
+                if tname in self.visited:
+                    continue
+                self.visited.add(tname)
+                root(VSpace())
+                with root(TypeDef(Struct(tname+'_s', ast.block()),
+                    tname+'_t')) as sub:
+                    sub(Var(Typename('struct '+tname+'_s *'), 'next'))
+                    self._simple_type(sub, v.key_element, 'key')
+                    self._simple_type(sub, v.value_element, 'value')
             elif isinstance(v, load.Array):
-                pass
-            elif isinstance(v, string_types):
-                ast(Var(Typename('char *'), varname(k)))
-                ast(Var(Typename('size_t'), varname(k)+'_len'))
+                tname = '{0}_a_{1}'.format(self.prefix,
+                    ctypename(v.element))
+                ast(Var(Typename('struct '+tname+'_s *'), varname(k)))
+                ast(Var('size_t', varname(k)+'_len'))
+                if tname in self.visited:
+                    continue
+                self.visited.add(tname)
+                root(VSpace())
+                with root(TypeDef(Struct(tname+'_s', ast.block()),
+                    tname+'_t')) as sub:
+                    sub(Var(Typename('struct '+tname+'_s *'), 'next'))
+                    self._simple_type(sub, v.element, 'value')
             else:
-                ast(Var(Typename(ctypes[v.__class__]), varname(k)))
+                self._simple_type(ast, v, k)
 
 #~         self.alltypes = alltypes = []
 #~         for one in self.usertypes:

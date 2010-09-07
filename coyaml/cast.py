@@ -31,6 +31,7 @@ class Typename(Node):
         (?:char|short|int|long|bool|float|double|\w+_t)
         \s*(?:\*\s*)* |
         struct\s+\w+
+        \s*(?:\*\s*)*
         $''', re.X)
     def __init__(self, value):
         super(Typename, self).__init__(value)
