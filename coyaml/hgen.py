@@ -1,25 +1,8 @@
 
 from . import load
-from .util import varname
+from .cutil import varname, typename, string_types
 from .cast import *
 from .textast import VSpace
-
-ctypes = {
-    load.Int: 'long',
-    load.UInt: 'size_t',
-    load.Float: 'double',
-    load.Bool: 'int',
-    }
-ctypenames = {
-    load.String: 'string',
-    }
-ctypenames.update(ctypes)
-string_types = (load.File, load.String, load.Dir)
-
-def ctypename(typ):
-    if isinstance(typ, load.Struct):
-        return typ.type
-    return ctypenames[typ.__class__]
 
 class GenHCode(object):
 
@@ -48,7 +31,7 @@ class GenHCode(object):
         ast(Var(Typename('coyaml_cmdline_t'), self.prefix+'_cmdline'))
         ast(Func(Typename('bool'), self.prefix+'_readfile', [
             Param(Typename('char *'), 'filename'),
-            Param(Typename(self.prefix+'_main_t *'), 'filename'),
+            Param(Typename(self.prefix+'_main_t *'), 'target'),
             Param(Typename('bool'), 'debug'),
             ]))
         ast(Func(Typename(self.prefix+'_main_t *'), self.prefix+'_init', [
@@ -70,7 +53,7 @@ class GenHCode(object):
             ast(Var(Typename('char *'), varname(name)))
             ast(Var(Typename('size_t'), varname(name)+'_len'))
         else:
-            ast(Var(Typename(ctypes[typ.__class__]), varname(name)))
+            ast(Var(Typename(typename(typ)), varname(name)))
 
     def _struct_body(self, ast, dic, root):
         for k, v in dic.items():
@@ -79,7 +62,7 @@ class GenHCode(object):
                     self._struct_body(ss, v, root=root)
             elif isinstance(v, load.Mapping):
                 tname = '{0}_m_{1}_{2}'.format(self.prefix,
-                    ctypename(v.key_element), ctypename(v.value_element))
+                    typename(v.key_element), typename(v.value_element))
                 ast(Var(Typename('struct '+tname+'_s *'), varname(k)))
                 ast(Var('size_t', varname(k)+'_len'))
                 if tname in self._visited:
@@ -93,7 +76,7 @@ class GenHCode(object):
                     self._simple_type(sub, v.value_element, 'value')
             elif isinstance(v, load.Array):
                 tname = '{0}_a_{1}'.format(self.prefix,
-                    ctypename(v.element))
+                    typename(v.element))
                 ast(Var(Typename('struct '+tname+'_s *'), varname(k)))
                 ast(Var('size_t', varname(k)+'_len'))
                 if tname in self._visited:

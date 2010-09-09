@@ -1,0 +1,24 @@
+
+__meta__:
+    program-name: server
+    description: testting http server with recursive config
+    default-config: /etc/recconfig.yaml
+
+__types__:
+
+  Route:
+
+    map: !Mapping
+      key-element: !String ~
+      value-element: !Struct Route
+
+    list: !Array
+      element: !Struct Route
+
+Server:
+    port: !Int
+      =: 80
+      description: Port number
+      command-line: -p
+
+Routing: !Struct Route

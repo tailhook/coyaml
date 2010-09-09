@@ -1,3 +1,4 @@
+
 from io import StringIO
 import types
 import re
@@ -5,7 +6,8 @@ from contextlib import contextmanager, nested
 
 class Node(object):
     __slots__ = ('_futures',)
-    pattern = re.compile(r'(\{\{|\}\})|\{(\w+)\}')
+    pattern = re.compile(r'(?P<bracket>\{\{|\}\})|'
+        r'\{(?P<prefix>\s*)(?P<key>\w+)(?P<suffix>\s*)\}')
 
     def __init__(self, *args, **kwargs):
         self._futures = []
@@ -37,7 +39,7 @@ class Node(object):
             for line in self.lines:
                 stream.line(self.each_line.format(line))
         if hasattr(self, 'value'):
-            stream.write(self.value)
+            stream.write(str(self.value))
         if hasattr(self, 'line_format'):
             with stream.complexline():
                 self._format_line(self.line_format, stream)
@@ -50,22 +52,33 @@ class Node(object):
                 with block.finish():
                     self._format_line(self.block_end, stream)
 
-    def _format_line(self, pattern, stream):
-        pieces = self.pattern.split(pattern)
-        for (i, val) in enumerate(pieces):
-            if i % 3 == 0:
-                stream.write(val)
-                continue
-            elif i % 3 == 1:
-                if val:
-                    stream.write(val[0])
-            elif i % 3 == 2:
-                if val:
-                    v = getattr(self, val)
-                    if isinstance(v, str):
-                        stream.write(v)
-                    else:
-                        v.format(stream)
+    def _format_line(self, format, stream):
+        start = 0
+        for m in self.pattern.finditer(format):
+            if m.start() > start:
+                stream.write(format[start:m.start()])
+            if m.group('bracket'):
+                stream.write(m.group('bracket')[0])
+            elif m.group('key'):
+                fun = getattr(self, 'fmt_'+m.group('key'), None)
+                if fun is not None:
+                    val = fun()
+                    if val:
+                        stream.write(m.group('prefix'))
+                        stream.write(val)
+                        stream.write(m.group('suffix'))
+                else:
+                    val = getattr(self, m.group('key'))
+                    if val:
+                        stream.write(m.group('prefix'))
+                        if isinstance(val, str):
+                            stream.write(val)
+                        else:
+                            val.format(stream)
+                        stream.write(m.group('suffix'))
+            start = m.end()
+        if start != len(format):
+            stream.write(format[start:])
 
 
 class VSpace(Node):
@@ -128,7 +141,7 @@ lazy = _Lazy() # Hi, I'm a singleton.
 
 class _FutureChildren(object):
     def __init__(self):
-        self.content = []
+        self.content = List(None)
 
     def __enter__(self):
         return self
@@ -143,6 +156,12 @@ class _FutureChildren(object):
                 return nested(*node._futures)
             else:
                 return node._futures[0]
+
+    def insert_first(self, node):
+        self.content.insert(0, node)
+
+    def set_type(self, typ):
+        self.content.type = typ
 
     def block(self):
         return _FutureChildren()
@@ -180,6 +199,7 @@ class _Stream(object):
         self.line_start = True
 
     def write(self, data):
+        self.line_start = False
         self.buffer.write(data)
 
     def line(self, line):
@@ -207,8 +227,6 @@ class _Stream(object):
 
     @contextmanager
     def block(self):
-        if self.line_start:
-            self.buffer.write(self.indent_kind * self.indent)
         block = _Block(self, self.indent_kind*self.indent, self.line_start)
         self.indent += 1
         yield block

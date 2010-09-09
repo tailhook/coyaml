@@ -36,7 +36,7 @@ def singleconfig(bld, src, trg):
             trg+'cfg.c',
             ],
         target       = trg,
-        includes     = ['src', bld.bdir + '/default', bld.curdir + '/include'],
+        includes     = ['include', 'src', bld.bdir + '/default'],
         defines      = [],
         ccflags      = ['-std=c99', '-g'],
         lib          = ['yaml'],
@@ -46,6 +46,7 @@ def singleconfig(bld, src, trg):
 def build(bld):
     singleconfig(bld, 'examples/tinyconfig.yaml', 'tinytest')
     singleconfig(bld, 'examples/comprehensive.yaml', 'comprehensive')
+    singleconfig(bld, 'examples/recconfig.yaml', 'recursive')
 
 def makeheader(task):
     src = task.inputs[0].srcpath(task.env)
