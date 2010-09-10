@@ -26,6 +26,7 @@ class GenHCode(object):
             ast(VSpace())
         with ast(TypeDef(Struct(self.prefix+'_main_s', ast.block()),
             self.prefix+'_main_t')) as ms:
+            ms(Var('coyaml_head_t', 'head'))
             self._struct_body(ms, self.cfg.data, root=ast)
         ast(VSpace())
         ast(Var(Typename('coyaml_cmdline_t'), self.prefix+'_cmdline'))
@@ -71,7 +72,7 @@ class GenHCode(object):
                 root(VSpace())
                 with root(TypeDef(Struct(tname+'_s', ast.block()),
                     tname+'_t')) as sub:
-                    sub(Var(Typename('struct '+tname+'_s *'), 'next'))
+                    sub(Var(Typename('coyaml_mappingel_head_t'), 'head'))
                     self._simple_type(sub, v.key_element, 'key')
                     self._simple_type(sub, v.value_element, 'value')
             elif isinstance(v, load.Array):
@@ -85,7 +86,7 @@ class GenHCode(object):
                 root(VSpace())
                 with root(TypeDef(Struct(tname+'_s', ast.block()),
                     tname+'_t')) as sub:
-                    sub(Var(Typename('struct '+tname+'_s *'), 'next'))
+                    sub(Var(Typename('coyaml_arrayel_head_t'), 'head'))
                     self._simple_type(sub, v.element, 'value')
             else:
                 self._simple_type(ast, v, k)
@@ -97,9 +98,8 @@ def main():
     cfg, inp, opt = simple()
     with inp:
         load(inp, cfg)
-    generator = GenHCode(cfg)
-    ast = Ast()
-    generator.make(ast)
+    with Ast() as ast:
+        GenHCode(cfg).make(ast)
     print(str(ast))
 
 if __name__ == '__main__':

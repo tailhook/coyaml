@@ -3,7 +3,7 @@ from collections import defaultdict
 from contextlib import nested
 
 from . import load, core
-from .cutil import varname, string, typename
+from .cutil import varname, string, typename, cbool
 from .cast import *
 
 cmdline_template = """\
@@ -16,269 +16,6 @@ Description:
 Options:
 {options}
 """
-
-class ArrayVal(object):
-    def __init__(self, value):
-        self.value = list(value)
-
-    def format(self, prefix, suffix='{val0.__class__.__name__}_vars'):
-        yield 'static {0} {1}_{2}[{3}] = {{'.format(self.value[0].ctype,
-            prefix, suffix.format(val0=self.value[0]), len(self.value))
-        for i, val in enumerate(self.value):
-            if val is None:
-                yield '    {{ NULL }}, // {0}. sentinel'.format(i)
-                continue
-            if self.value[-1] == val:
-                yield '    {0}  // {1}. {2}'.format(
-                    val.format(prefix), i,
-                    '.'.join(val.path) if hasattr(val, 'path') else '')
-            else:
-                yield '    {0}, // {1}. {2}'.format(
-                    val.format(prefix), i,
-                    '.'.join(val.path) if hasattr(val, 'path') else '')
-            if getattr(val, 'start_mark', None):
-                yield '    //{0}'.format(val.start_mark)
-        yield '};'
-
-class CStruct(object):
-    fields = ()
-    bitmask = True
-    def __init__(self, val):
-        val.ctype = self
-        self.start_mark = val.start_mark
-        self.path = val.path
-        self.struct_name = val.struct_name
-        self.member_path = val.member_path
-        for k, typ in self.fields:
-            if hasattr(val, k):
-                setattr(self, k, typ(getattr(val, k)))
-
-    @classmethod
-    def array(cls, value):
-        return ArrayVal(value)
-
-    def format(self, prefix):
-        res = []
-        bitmask = 0
-        for i, (k, v) in enumerate(self.fields):
-            if hasattr(self, k):
-                bitmask |= 1 << i
-                val = getattr(self, k)
-                if v == str:
-                    val = '"{0}"'.format(repr(val)[1:-1])
-                elif v == CStruct:
-                    if val:
-                        val = '&{0}_{1}_vars[{2}]'.format(prefix,
-                            val.__class__.__name__, val.index)
-                    else:
-                        val = "NULL"
-                elif v == bool:
-                    val = str(val).upper()
-                res.append('{0}: {1}'.format(k, val))
-        if hasattr(self, 'struct_name'):
-            res.append('baseoffset: {0}'.format(self.baseoffset))
-        if self.bitmask and self.fields:
-            res.append('bitmask: {0}'.format(bitmask))
-        return '{{{0}}}'.format(', '.join(res))
-
-    @property
-    def baseoffset(self):
-        return 'offsetof({0}, {1})'.format(self.struct_name, self.member_path)
-
-class CInt(CStruct):
-    ctype = 'coyaml_int_t'
-    fields = (
-        ('min', int),
-        ('max', int),
-        )
-
-class CUInt(CInt):
-    ctype = 'coyaml_uint_t'
-
-class CFloat(CStruct):
-    ctype = 'coyaml_float_t'
-    fields = (
-        ('min', float),
-        ('max', float),
-        )
-
-class CString(CStruct):
-    ctype = 'coyaml_string_t'
-
-class CBool(CStruct):
-    ctype = 'coyaml_bool_t'
-
-class CArray(CStruct):
-    ctype = 'coyaml_array_t'
-    bitmask = False
-    fields = (
-        ('element_size', None),
-        ('element_prop', CStruct),
-        ('element_callback', None),
-        ('element_defaults', None),
-        )
-
-    @property
-    def element_callback(self):
-        return '(coyaml_state_fun)&coyaml_' \
-            + self.element_prop.__class__.__name__
-
-class CMapping(CStruct):
-    ctype = 'coyaml_mapping_t'
-    bitmask = False
-    fields = (
-        ('element_size', None),
-        ('key_prop', CStruct),
-        ('value_prop', CStruct),
-        ('key_callback', None),
-        ('value_callback', None),
-        ('key_defaults', None),
-        ('value_defaults', None),
-        )
-
-    @property
-    def key_callback(self):
-        return '(coyaml_state_fun)&coyaml_' + self.key_prop.__class__.__name__
-
-    @property
-    def value_callback(self):
-        return '(coyaml_state_fun)&coyaml_' + self.value_prop.__class__.__name__
-
-
-class CFile(CStruct):
-    ctype = 'coyaml_file_t'
-    fields = (
-        ('check_existence', bool),
-        ('check_dir', bool),
-        ('check_writable', bool),
-        )
-
-class CDir(CStruct):
-    ctype = 'coyaml_dir_t'
-    fields = (
-        ('check_existence', bool),
-        ('check_dir', bool),
-        ('check_writable', bool),
-        )
-
-class CTransition(CStruct):
-    ctype = 'coyaml_transition_t'
-    bitmask = False
-    fields = (
-        ('symbol', str),
-        ('callback', None),
-        ('prop', CStruct),
-        )
-    def __init__(self, key, typ, *, path):
-        self.symbol = key
-        self.prop = typ
-        self.path = path
-        self.start_mark = typ.start_mark
-
-    @property
-    def callback(self):
-        return '(coyaml_state_fun)&coyaml_' + self.prop.__class__.__name__
-
-class CTag(CStruct):
-    ctype = 'coyaml_tag_t'
-    bitmask = False
-    fields = (
-        ('tagname', str),
-        ('tagvalue', int),
-        )
-    def __init__(self, name, value):
-        self.name = name
-        self.value = value
-
-class CGroup(CStruct):
-    ctype = 'coyaml_group_t'
-    fields = (
-        ('transitions', CStruct),
-        )
-    def __init__(self, dic, first_tran, *, path):
-        self.path = path
-        self.start_mark = dic.start_mark
-        self.first_tran = first_tran
-
-    @property
-    def transitions(self):
-        return self.first_tran
-
-class CCustom(CStruct):
-    ctype = 'coyaml_custom_t'
-    fields = (
-        ('usertype', CStruct),
-        )
-    def __init__(self, val):
-        val.ctype = self
-        self.start_mark = val.start_mark
-        self.path = val.path
-        self.struct_name = val.struct_name
-        self.member_path = val.member_path
-        self.typename = val.type
-
-class CUsertype(CStruct):
-    ctype = 'coyaml_usertype_t'
-    fields = (
-        ('group', CStruct),
-        )
-
-    def __init__(self, data, child, *, path):
-        self.data = data
-        self.group = child
-        self.path = path
-        data.ctype = self
-
-class CGetopt(CStruct):
-    ctype = 'struct option'
-    bitmask = False
-    fields = (
-        ('name', str),
-        ('has_arg', bool),
-        ('flag', None),
-        ('val', int),
-        )
-    flag = 'NULL'
-    def __init__(self, opt, val=None):
-        if isinstance(opt, str):
-            self.name = opt
-            self.has_arg = False
-        else:
-            self.name = opt.name
-            self.has_arg = opt.has_argument
-        if val is None:
-            self.val = 1000+opt.index
-        else:
-            self.val = val
-
-class COption(CStruct):
-
-    ctype = 'coyaml_option_t'
-    bitmask = False
-    fields = (
-        ('callback', None),
-        ('prop', CStruct),
-        )
-    def __init__(self, callback, prop):
-        self.callback = callback
-        self.prop = prop
-
-
-ctypes = {
-    'Int': CInt,
-    'Uint': CUInt,
-    'Float': CFloat,
-    'String': CString,
-    'Bool': CBool,
-    'Array': CArray,
-    'Mapping': CMapping,
-    'File': CFile,
-    'Dir': CDir,
-    'Struct': CCustom,
-    'Usertype': CUsertype,
-    'dict': CGroup,
-    'transition': CTransition,
-    }
 
 placeholders = {
     load.Int: '%d',
@@ -296,6 +33,22 @@ cfgtoast = {
     load.Dir: String,
     }
 
+def mem2dotname(mem):
+    if isinstance(mem, Dot):
+        return Dot(mem2dotname(mem.source), mem.name)
+    elif isinstance(mem, Member):
+        return mem.name
+    elif isinstance(mem, Expression):
+        return Expression(mem2dotname(mem.expr))
+    else:
+        raise NotImplementedError(mem)
+
+def bitmask(*args):
+    res = 0
+    for i, v in enumerate(args):
+        if v:
+            res |= 1 << i
+    return res
 
 class GenCCode(object):
 
@@ -303,136 +56,130 @@ class GenCCode(object):
         self.cfg = cfg
         self.prefix = cfg.name
 
+    def _vars(self, ast, decl=False):
+        items = ('usertype', 'group', 'string', 'file', 'dir', 'int', 'uint',
+            'custom', 'mapping', 'array')
+        if decl:
+            for i in items:
+                ast(Var('coyaml_'+i+'_t',
+                    self.prefix+'_'+i+'_vars',
+                    static=True, array=(None,)))
+        else:
+            self.states = {}
+            for i in items:
+                res = ast(VarAssign('coyaml_'+i+'_t',
+                    self.prefix+'_'+i+'_vars', Arr(ast.block()),
+                    static=True, array=(None,)))
+                self.states[i] = res
+            return self.states.values()
+
     def make(self, ast):
         ast(CommentBlock(
             'THIS IS AUTOGENERATED FILE',
             'DO NOT EDIT!!!',
             ))
+        ast(Define('_GNU_SOURCE'))
         ast(StdInclude('coyaml_src.h'))
         ast(StdInclude('stdlib.h'))
+        ast(StdInclude('stdio.h'))
         ast(StdInclude('errno.h'))
         ast(StdInclude('strings.h'))
         ast(Include(self.cfg.targetname+'.h'))
         ast(VSpace())
-        ast(Var('coyaml_transition_t', self.cfg.name+'_transition_vars',
-            static=True, array=(None,)))
-        ast(Var('coyaml_usertype_t', self.cfg.name+'_usertype_vars',
-            static=True, array=(None,)))
-        ast(Var('coyaml_group_t', self.cfg.name+'_group_vars',
-            static=True, array=(None,)))
-        ast(Var('coyaml_string_t', self.cfg.name+'_string_vars',
-            static=True, array=(None,)))
-        ast(Var('coyaml_int_t', self.cfg.name+'_int_vars',
-            static=True, array=(None,)))
-        ast(Var('coyaml_uint_t', self.cfg.name+'_uint_vars',
-            static=True, array=(None,)))
-        ast(Var('coyaml_custom_t', self.cfg.name+'_custom_vars',
-            static=True, array=(None,)))
-        self.visit_hier(ast)
+        self.lasttran = 0
+        self._vars(ast.zone('transitions'), decl=True)
+        ast(VSpace())
+        ast.zone('usertypes')
+        ast(VSpace())
+        vars = ast.zone('vars')
+        ast(VSpace())
+        cli = ast.zone('cli')
+        ast(VSpace())
+        ast.zone('default_funcs')
+        ast.zone('print_funcs')
+        with nested(*self._vars(vars, decl=False)):
+            self.visit_hier(ast)
 
-        self.make_options(ast)
+        self.make_options(cli)
 
-#~         self.make_defaultfuncs()
-#~         self.type_visitor(cfg.data)
-#~         self.types['dict'].reverse() # Root item must be first
-#~         for k, t in cfg.types.items():
-#~             self.type_visitor(t, ('__types__', k))
-#~         self.type_enum()
-#~         self.make_types()
-#~         import pprint; pprint.pprint(dict(printerlines))
-#~         self.lines.extend(r'''
-#~ int {prefix}_optidx[] = {{{optidx}}};
+        mainstr = Typename(self.prefix+'_main_t')
+        mainptr = Typename(self.prefix+'_main_t *')
+        with ast(Function(mainptr, self.prefix+'_init', [
+            Param(mainptr, Ident('ptr')) ], ast.block())) as init:
+            init(VarAssign(mainptr, 'res', Ident('ptr')))
+            with init(If(Not(Ident('res')), ast.block())) as if_:
+                if_(Statement(Assign('res', Coerce(mainptr,
+                    Call('malloc', [ Call('sizeof', [ mainstr ])])))))
+            with init(If(Not(Ident('res')), ast.block())) as if_:
+                if_(Return(Ident('NULL')))
+            init(Statement(Call('bzero', [ Ident('res'),
+                Call('sizeof', [ mainstr ]) ])))
+            with init(If(Not(Ident('ptr')), init.block())) as if_:
+                if_(Statement(Assign(Dot(Member(Ident('res'), 'head'),
+                    'free_object'), Ident('TRUE'))))
+            init(Statement(Call('obstack_init', [
+                Ref(Dot(Member(Ident('res'), 'head'), 'pieces'))])))
+            init(Statement(Call(self.prefix + '_defaults', [ Ident('res') ])))
+            init(Return(Ident('res')))
 
-#~ void {prefix}_print_config(FILE *output, {prefix}_main_t *config);
-#~ coyaml_cmdline_t {prefix}_cmdline = {{
-#~     usage: {usage},
-#~     full_description: {full_description},
-#~     optstr: {optstr},
-#~     optidx: {prefix}_optidx,
-#~     options: {prefix}_getopt_options,
-#~     coyaml_options: {prefix}_COption_vars,
-#~     print_callback: (void (*)(FILE *,void*))&{prefix}_print_config,
-#~     filename: {default_filename},
-#~     debug: FALSE
-#~     }};
+        with ast(Function(Void(), self.prefix+'_free', [
+            Param(mainptr, Ident('ptr')) ], ast.block())) as free:
+            free(Statement(Call('obstack_free', [
+                Ref(Dot(Member(Ident('ptr'), 'head'), 'pieces')),
+                Ident('NULL') ])))
+            with free(If(Dot(Member(Ident('ptr'), 'head'), 'free_object'),
+                ast.block())) as if_:
+                if_(Statement(Call('free', [ Ident('ptr') ])))
 
-#~ void {prefix}_print_config(FILE *output, {prefix}_main_t *config) {{
-#~     fprintf(output, "%YAML-1.1\n");
-#~     fprintf(output, "# Configuration {prefix}\n");
-#~ {printerlines}
-#~ }}
+        with ast(Function(Typename('bool'), self.prefix+'_readfile', [
+            Param('char *', 'filename'), Param(mainptr, 'target'),
+            Param('bool', 'debug') ], ast.block())) as fun:
+            fun(Return(Call('coyaml_readfile', [
+                Ident('filename'), Ref(Subscript(
+                    Ident(self.prefix+'_group_vars'),
+                    Int(len(self.states['group'].content)-1))),
+                Ident('target'), Ident('debug') ] )))
 
-#~ bool {prefix}_readfile(char *filename, {prefix}_main_t *target, bool debug) {{
-#~     return coyaml_readfile(filename, &{prefix}_CGroup_vars[0], target, debug);
-#~ }}
+        errcheck = If(Or(
+            Gt(Ident('errno'), Ident('ECOYAML_MAX')),
+            Lt(Ident('errno'), Ident('ECOYAML_MIN'))), ast.block())
 
-#~ {prefix}_main_t *{prefix}_init({prefix}_main_t *ptr) {{
-#~     {prefix}_main_t *res = ptr;
-#~     if(!res) {{
-#~         res = ({prefix}_main_t *)malloc(sizeof({prefix}_main_t));
-#~     }}
-#~     if(!res) return NULL;
-#~     bzero(res, sizeof({prefix}_main_t));
-#~     if(!res) {{
-#~         res->head.free_object = TRUE;
-#~     }}
-#~     obstack_init(&res->head.pieces);
-#~     {prefix}_defaults_main(ptr);
-#~     return res;
-#~ }}
-#~ void {prefix}_free({prefix}_main_t *ptr) {{
-#~     obstack_free(&ptr->head.pieces, NULL);
-#~     if(ptr->head.free_object) {{
-#~         free(ptr);
-#~     }};
-#~ }}
-#~ {prefix}_main_t *{prefix}_load({prefix}_main_t *ptr, int argc, char **argv) {{
-#~     if(coyaml_cli_prepare(argc, argv, &cfg_cmdline) < 0) {{
-#~         if(errno > ECOYAML_MAX || errno < ECOYAML_MIN)
-#~             perror(argv[0]);
-#~         // else, error is already printed by coyaml
-#~         exit((errno == ECOYAML_CLI_HELP) ? 0 : 1);
-#~     }}
-#~     ptr = {prefix}_init(ptr);
-#~     if(!ptr) {{
-#~         perror(argv[0]);
-#~     }}
-#~     if({prefix}_readfile(cfg_cmdline.filename, ptr, cfg_cmdline.debug) < 0) {{
-#~         if(errno > ECOYAML_MAX || errno < ECOYAML_MIN)
-#~             perror(argv[0]);
-#~         // else, error is already printed by coyaml
-#~         {prefix}_free(ptr);
-#~         exit(1);
-#~     }}
-#~     if(coyaml_cli_parse(argc, argv, &cfg_cmdline, ptr) < 0) {{
-#~         if(errno > ECOYAML_MAX || errno < ECOYAML_MIN)
-#~             perror(argv[0]);
-#~         // else, error is already printed by coyaml
-#~         {prefix}_free(ptr);
-#~         exit((errno == ECOYAML_CLI_EXIT) ? 0 : 1);
-#~     }}
-#~     return ptr;
-#~ }}
-#~ '''.format(prefix=cfg.name,
-#~         usage=cstring("Usage:\n    {0} [options]\n"
-#~             .format(cfg.meta.program_name)),
-#~         full_description=cstring(self.cmdline_descr),
-#~         optstr=cstring(self.cmdline_optstr),
-#~         optidx=', '.join(map(str, self.cmdline_optidx)),
-#~         default_filename=cstring(cfg.meta.default_config),
-#~         printerlines='\n'.join(self.printerlines),
-#~         ).splitlines())
-
-    def make_types(self):
-        types = self.types.copy()
-        tran = types.pop('transition', [])
-        for tname, items in types.items():
-            self.lines.append('')
-            self.lines.extend(ctypes[tname].array(items)
-                .format(prefix=self.cfg.name))
-        self.lines.append('')
-        self.lines.extend(CTransition.array(tran)
-            .format(prefix=self.cfg.name))
+        with ast(Function(mainptr, self.prefix+'_load', [ Param(mainptr, 'ptr'),
+            Param('int','argc'), Param('char**','argv') ], ast.block())) as fun:
+            with fun(If(Lt(Call('coyaml_cli_prepare', [ Ident('argc'),
+                Ident('argv'), Ref(Ident('cfg_cmdline')) ]), Int(0)),
+                fun.block())) as if_:
+                with if_(errcheck) as if1:
+                    if1(Statement(Call('perror', [
+                        Subscript(Ident('argv'), Int(0)) ])))
+                if_(Statement(Call('exit', [ Ternary(
+                    Eq(Ident('errno'), Ident('ECOYAML_CLI_HELP')),
+                    Int(0), Int(1)) ])))
+            fun(Statement(Assign(Ident('ptr'),
+                Call(self.prefix+'_init', [ Ident('ptr') ]))))
+            with fun(If(Not(Ident('ptr')), fun.block())) as if_:
+                if_(errcheck) # reusing ast
+                if_(Statement(Call('exit', [ Int(1) ])))
+            with fun(If(Lt(
+                Call(self.prefix+'_readfile', [
+                    Dot(Ident('cfg_cmdline'), 'filename'),
+                    Ident('ptr'),
+                    Dot(Ident('cfg_cmdline'), 'debug'),
+                    ]),
+                Int(0)), fun.block())) as if_:
+                if_(errcheck) # reusing ast
+                if_(Statement(Call(self.prefix+'_free', [ Ident('ptr') ])))
+                if_(Statement(Call('exit', [ Int(1) ])))
+            with fun(If(Lt(
+                Call('coyaml_cli_parse', [ Ident('argc'), Ident('argv'),
+                    Ref(Ident('cfg_cmdline')), Ident('ptr') ]),
+                Int(0)), fun.block())) as if_:
+                if_(errcheck) # reusing ast
+                if_(Statement(Call(self.prefix+'_free', [ Ident('ptr') ])))
+                if_(Statement(Call('exit', [ Ternary(
+                    Eq(Ident('errno'), Ident('ECOYAML_CLI_EXIT')),
+                    Int(0), Int(1)) ])))
+            fun(Return(Ident('ptr')))
 
     def make_options(self, ast):
         optval = 1000
@@ -448,9 +195,17 @@ class GenCCode(object):
                 continue
             opt.index = optval
             optval += 1
-        ast(VSpace())
+        ast(Func('int', self.prefix+'_print', [
+                Param('FILE *', 'out'),
+                Param('const char *', 'prefix'),
+                Param(self.prefix+'_main_t *', 'cfg'),
+                ]))
         with ast(VarAssign('struct option',
-            self.prefix+'_getopt_ar', Arr(ast.block()), array=(None,))) as cmd:
+                self.prefix+'_getopt_ar', Arr(ast.block()),
+                static=True, array=(None,))) as cmd,\
+            ast(VarAssign('coyaml_option_t',
+                self.prefix+'_options', Arr(ast.block()),
+                static=True, array=(None,))) as copt:
             cmd(StrValue(name=String('help'), val=Int(500),
                 flag='NULL', has_arg='FALSE')),
             cmd(StrValue(name=String('config'), val=Int(501),
@@ -462,17 +217,26 @@ class GenCCode(object):
             cmd(StrValue(name=String('check-config'), val=Int(601),
                 flag='NULL', has_arg='FALSE')),
             optstr = "hc:PC"
+            optidx = [500, 501, -1, 600, 601]
             for opt in self.cfg.commandline:
                 has_arg = opt.__class__ == core.Option
                 if opt.char:
+                    optidx.append(1000+len(copt.content))
                     optstr += opt.char
                     if has_arg:
                         optstr += ':'
+                        optidx.append(-1)
                 if opt.name:
                     cmd(StrValue(name=String(opt.name), val=Int(opt.index),
                         flag='NULL',
                         has_arg='TRUE' if has_arg else 'FALSE'))
-
+                copt(StrValue(
+                    callback=Coerce('coyaml_option_fun',
+                        Ref(opt.target.prop_func+'_o')),
+                    prop=opt.target.prop_ref,
+                    ))
+        ast(VarAssign('int', self.prefix+'_optidx',
+            Arr(list(map(Int, optidx))), static=True, array=(None,)))
         stroptions = []
         for target in targets:
             for typ in (core.Option, core.IncrOption, core.DecrOption):
@@ -503,11 +267,13 @@ class GenCCode(object):
         ast(VarAssign('coyaml_cmdline_t', self.prefix+'_cmdline',
             StrValue(
                 optstr=String(optstr),
+                optidx=self.prefix+'_optidx',
                 usage=String(usage),
                 full_description=String(descr),
                 options=self.prefix+'_getopt_ar',
-                coyaml_options='NULL',
-                print_callback=self.prefix+'_print',
+                coyaml_options=self.prefix+'_options',
+                print_callback=Coerce('coyaml_print_fun',
+                    Ref(self.prefix+'_print')),
             )))
 
     def visit_hier(self, ast):
@@ -515,46 +281,77 @@ class GenCCode(object):
         # names for `offsetof()` in `baseoffset`
         self.print_functions = set()
         ast(VSpace())
+        tranname = Ident('transitions_{0}'.format(self.lasttran))
+        self.lasttran += 1
         with ast(Function('int', self.prefix+'_print', [
-            Param('FILE *', 'out'),
-            Param('const char *', 'prefix'),
-            Param(self.prefix+'_main_t *', 'cfg'),
-            ], ast.block())) as past:
-            with ast(Function('int', self.prefix+'_defaults', [
+                Param('FILE *', 'out'),
+                Param('const char *', 'prefix'),
                 Param(self.prefix+'_main_t *', 'cfg'),
-                ], ast.block())) as dast:
-                for k, v in self.cfg.data.items():
-                    self._visit_hier(v, k, self.prefix+'_main_t', '',
-                        Member('cfg', varname(k)),
-                        past=past, pfun=past, dast=dast, root=ast)
+                ], ast.block())) as past, \
+            ast(Function('int', self.prefix+'_defaults', [
+                Param(self.prefix+'_main_t *', 'cfg'),
+                ], ast.block())) as dast, \
+            ast.zone('transitions')(VarAssign('coyaml_transition_t', tranname,
+                Arr(ast.block()),
+                static=True, array=(None,))) as tran:
+            for k, v in self.cfg.data.items():
+                self._visit_hier(v, k, self.prefix+'_main_t', '',
+                    Member('cfg', varname(k)),
+                    past=past, pfun=past, dast=dast, root=ast)
+                tran(StrValue(
+                    symbol=String(k),
+                    callback=Coerce('coyaml_state_fun', Ref(v.prop_func)),
+                    prop=v.prop_ref,
+                    ))
+            tran(StrValue(symbol=Ident('NULL'),
+                callback=Ident('NULL'), prop=Ident('NULL')))
             free = getattr(past, '_const_free', ())
             for i in free:
                 past(Statement(Call('free', [ Ident(i) ])))
+            self.states['group'](StrValue(
+                baseoffset=Int(0),
+                transitions=tranname,
+                ))
 
     def _visit_hier(self, item, name, struct_name, pws, mem,
         past, pfun, dast, root):
         if isinstance(item, dict):
             past(Statement(Call('fprintf', [ Ident('out'),
                 String('%s{0}{1}:\n'.format(pws, name)), Ident('prefix') ])))
-            for k, v in item.items():
-                self._visit_hier(v, k, struct_name, pws+'  ',
-                    Dot(mem, varname(k)),
-                    past=past, pfun=pfun, dast=dast, root=root)
+            tranname = Ident('transitions_{0}'.format(self.lasttran))
+            self.lasttran += 1
+            with root.zone('transitions')(VarAssign('coyaml_transition_t',
+                tranname, Arr(root.block()),
+                static=True, array=(None,))) as tran:
+                for k, v in item.items():
+                    self._visit_hier(v, k, struct_name, pws+'  ',
+                        Dot(mem, varname(k)),
+                        past=past, pfun=pfun, dast=dast, root=root)
+                    tran(StrValue(
+                        symbol=String(k),
+                        callback=Coerce('coyaml_state_fun', Ref(v.prop_func)),
+                        prop=v.prop_ref,
+                        ))
+                tran(StrValue(symbol=Ident('NULL'),
+                    callback=Ident('NULL'), prop=Ident('NULL')))
+            self.states['group'](StrValue(
+                baseoffset=Call('offsetof', [ Ident(struct_name),
+                    mem2dotname(mem) ]),
+                transitions=tranname,
+                ))
+            item.prop_func = 'coyaml_group'
+            item.prop_ref = Ref(Subscript(Ident(self.prefix+'_group_vars'),
+                Int(len(self.states['group'].content)-1)))
         elif item.__class__ in placeholders:
             item.struct_name = struct_name
             item.member_path = mem
-            if hasattr(item, 'default_'):
-                if isinstance(item, (load.File, load.String, load.Dir)):
-                    val = string(item.default_)
-                else:
-                    val = str(item.default_)
-#~                 self.defaultfuncs[struct_name].append((mem, val))
             past(Statement(Call('fprintf', [ Ident('out'),
                 String('%s{0}{1}: {2}\n'.format(pws, name,
                 placeholders[item.__class__])), Ident('prefix'), mem ])))
             if hasattr(item, 'default_'):
                 dast(Statement(Assign(mem,
                     cfgtoast[item.__class__](item.default_))))
+            self.mkstate(item, struct_name, mem)
         elif isinstance(item, load.Struct):
             item.struct_name = struct_name
             item.member_path = mem
@@ -563,23 +360,47 @@ class GenCCode(object):
             if fname not in self.print_functions:
                 self.print_functions.add(fname)
                 typname = self.prefix+'_'+item.type+'_t'
-                root(VSpace())
-                with root(Function('int', fname, [
-                    Param('FILE *', 'out'),
-                    Param('const char *', 'prefix'),
-                    Param(typname+' *', 'cfg'),
-                    ], root.block())) as cur:
+                tranname = Ident('transitions_{0}'.format(self.lasttran))
+                self.lasttran += 1
+                with root.zone('print_funcs')(Function('int', fname, [
+                        Param('FILE *', 'out'),
+                        Param('const char *', 'prefix'),
+                        Param(typname+' *', 'cfg'),
+                        ], root.block())) as cur, \
+                    root.zone('transitions')(VarAssign('coyaml_transition_t',
+                        tranname, Arr(root.block()),
+                        static=True, array=(None,))) as tran:
                     defname = self.prefix+'_defaults_'+item.type
-                    with root(Function('int', defname, [
+                    with root.zone('default_funcs')(Function('int', defname, [
                         Param(typname+' *', 'cfg'),
                         ], root.block())) as cdef:
                         for k, v in self.cfg.types[item.type].members.items():
                             self._visit_hier(v, k, typname,
                                 '', Member('cfg', varname(k)),
                                 past=cur, pfun=cur, dast=cdef, root=root)
+                            tran(StrValue(
+                                symbol=String(k),
+                                callback=Coerce('coyaml_state_fun', Ref(v.prop_func)),
+                                prop=v.prop_ref,
+                                ))
+                        tran(StrValue(symbol=Ident('NULL'),
+                            callback=Ident('NULL'), prop=Ident('NULL')))
                     free = getattr(cur, '_const_free', ())
                     for i in free:
                         cur(Statement(Call('free', [ Ident(i) ])))
+                self.states['group'](StrValue(
+                    baseoffset=Call('offsetof', [ Ident(struct_name),
+                        mem2dotname(mem) ]),
+                    transitions=tranname,
+                    ))
+                root.zone('usertypes')(VarAssign('coyaml_usertype_t',
+                    self.prefix+'_'+item.type+'_def', StrValue(
+                        baseoffset=Int(0),
+                        group=Ref(Subscript(Ident(self.prefix+'_group_vars'),
+                            Int(len(self.states['group'].content)-1))),
+                        tags=Ident('NULL'),
+                        scalar_fun=Ident('NULL'),
+                    ), static=True))
             if name is not None:
                 past(Statement(Call('fprintf', [ Ident('out'),
                     String('%s{0}{1}:\n'.format(pws, name)),
@@ -590,26 +411,38 @@ class GenCCode(object):
                 if not hasattr(pfun, '_const_free'):
                     pfun._const_free = []
                 pfun._const_free.append(pxname)
-                pfun.insert_first(VarAssign('char *', Ident(pxname),
-                    Call('asprintf', [ String('%s' + pws + '  '),
-                    Ident('prefix') ])))
+                pfun.insert_first(Statement(Call('asprintf',[Ref(Ident(pxname)),
+                    String('%s' + pws + '  '), Ident('prefix') ])))
+                pfun.insert_first(Var('char *', Ident(pxname)))
             past(Statement(Call(self.prefix+'_print_'+item.type, [ Ident('out'),
-                Ident(pxname), Deref(mem)])))
-            dast(Statement(Call(self.prefix+'_defaults_'+item.type, [
-                Deref(mem) ])))
+                Ident(pxname), Ref(mem)])))
+            if dast:
+                dast(Statement(Call(self.prefix+'_defaults_'+item.type, [
+                    Ref(mem) ])))
+            self.states['custom'](StrValue(
+                baseoffset=Call('offsetof', [ Ident(struct_name),
+                    mem2dotname(mem) ]),
+                usertype=Ref(Ident(self.prefix+'_'+item.type+'_def')),
+                ))
+            item.prop_func = 'coyaml_custom'
+            item.prop_ref = Ref(Subscript(Ident(self.prefix+'_custom_vars'),
+                Int(len(self.states['custom'].content)-1)))
         elif isinstance(item, load.Mapping):
             item.struct_name = struct_name
             item.member_path = mem
             past(Statement(Call('fprintf', [ Ident('out'),
                 String('%s{0}{1}:\n'.format(pws, name)),
                 Ident('prefix') ])))
+            mstr = (self.prefix+'_m_'+typename(item.key_element)
+                    +'_'+typename(item.value_element)+'_t')
             with past(For(
-                FVar(self.prefix+'_m_'+typename(item.key_element)
-                    +'_'+typename(item.value_element)+'_t *', 'item', mem),
+                FVar(mstr+' *', 'item', mem),
                 Ident('item'), Assign(Ident('item'),
                 Dot(Member(Ident('item'), 'head'), 'next')),
                 past.block())) as loop:
-                if not isinstance(item.key_element, load.Struct)\
+                self.mkstate(item.key_element, mstr,
+                    Member(Ident('item'), Ident('key')))
+                if not isinstance(item.key_element, load.Struct) \
                     and not isinstance(item.value_element, load.Struct):
                     loop(Statement(Call('fprintf', [ Ident('out'),
                         String('%s{0}  {1}: {2}\n'.format(pws,
@@ -619,6 +452,8 @@ class GenCCode(object):
                         Member(Ident('item'), 'key'),
                         Member(Ident('item'), 'value'),
                         ])))
+                    self.mkstate(item.value_element, mstr,
+                        Member(Ident('item'), Ident('value')))
                 elif not isinstance(item.key_element, load.Struct):
                     loop(Statement(Call('fprintf', [ Ident('out'),
                         String('%s{0}  {1}:\n'.format(pws,
@@ -629,44 +464,34 @@ class GenCCode(object):
                         .format(self.prefix, typename(item.key_element),
                         typename(item.value_element)), pws + '    ',
                         Member(Ident('item'), 'value'),
-                        past=loop, pfun=pfun, dast=dast, root=root)
+                        past=loop, pfun=pfun, dast=None, root=root)
                 else:
                     raise NotImplementedError(item.key_element)
-#~             item.struct_name = struct_name
-#~             item.member_path = mem
-#~             self._visit_hier(item.key_element, '{0}_m_{1}_{2}_t'.format(
-#~                 self.cfg.name, ctypename(item.key_element),
-#~                     ctypename(item.value_element)), 'key')
-#~             self._visit_hier(item.value_element, '{0}_m_{1}_{2}_t'.format(
-#~                 self.cfg.name, ctypename(item.key_element),
-#~                     ctypename(item.value_element)), 'value')
-#~             self._printerline('{0}{1}:\n'.format(pws, name))
-#~             self.printerlines.append(
-#~                 '    for({prefix}_m_{0}_{1}_t *item={2}; item; item = item->head.next) {{'
-#~                 .format(ctypename(item.key_element),
-#~                 ctypename(item.value_element), mem, prefix=self.cfg.name))
-#~             if(not isinstance(item.key_element, load.Struct)
-#~                 and not isinstance(item.value_element, load.Struct)):
-#~                 self._printerline(ws + '  {0}: {1}\n'.format(
-#~                     placeholders[item.key_element.__class__],
-#~                     placeholders[item.value_element.__class__]),
-#~                     'item->key', 'item->value', ws='        ')
-#~             else:
-#~                 raise NotImplementedError(item.key_element, item.value_element)
-#~             self.printerlines.append('    }')
+            self.states['mapping'](StrValue(
+                baseoffset=Call('offsetof', [ Ident(struct_name),
+                    mem2dotname(mem) ]),
+                element_size=Call('sizeof', [ Typename(mstr) ]),
+                key_prop=item.key_element.prop_ref,
+                key_callback=Coerce('coyaml_state_fun',
+                    item.key_element.prop_func),
+                value_prop=item.value_element.prop_ref,
+                value_callback=Coerce('coyaml_state_fun',
+                    item.value_element.prop_func),
+                ))
+            item.prop_func = 'coyaml_mapping'
+            item.prop_ref = Ref(Subscript(Ident(self.prefix+'_mapping_vars'),
+                Int(len(self.states['mapping'].content)-1)))
         elif isinstance(item, load.Array):
             item.struct_name = struct_name
             item.member_path = mem
             past(Statement(Call('fprintf', [ Ident('out'),
                 String('%s{0}{1}:\n'.format(pws, name)),
                 Ident('prefix') ])))
-            loop = For(
-                FVar(self.prefix+'_a_'+typename(item.element)+'_t *',
-                    'item', mem),
+            astr = self.prefix+'_a_'+typename(item.element)+'_t'
+            with past(For(FVar(astr+' *', 'item', mem),
                 Ident('item'), Assign(Ident('item'),
                 Dot(Member(Ident('item'), 'head'), 'next')),
-                past.block())
-            with nested(past(loop), dast(loop)) as (ploop, dloop):
+                past.block())) as ploop:
                 if not isinstance(item.element, load.Struct):
                     ploop(Statement(Call('fprintf', [ Ident('out'),
                         String('%s{0}  - {1}\n'.format(pws,
@@ -682,116 +507,92 @@ class GenCCode(object):
                     self._visit_hier(item.element, None, '{0}_a_{1}_t'.format(
                         self.prefix, typename(item.element)), pws + '  ',
                         Member(Ident('item'), 'value'),
-                        past=ploop, pfun=pfun, dast=dloop, root=root)
-#~             self.printerlines.append(
-#~                 '    for({prefix}_a_{0}_t *item={1}; item; item = item->head.next) {{'
-#~                 .format(ctypename(item.element), mem, prefix=self.cfg.name))
-#~             if not isinstance(item.element, load.Struct):
-#~                 self._printerline(ws + '- {0}\n'.format(
-#~                     placeholders[item.element.__class__]),
-#~                     'item->value', ws='        ')
-#~             else:
-#~                 self._printerline(ws + '-\n', ws='        ')
-#~                 self._make_printer(item.element, None,
-#~                     ws+'  ', 'item->value');
+                        past=ploop, pfun=pfun, dast=None, root=root)
+            self.states['array'](StrValue(
+                baseoffset=Call('offsetof', [ Ident(struct_name),
+                    mem2dotname(mem) ]),
+                element_size=Call('sizeof', [ Typename(astr) ]),
+                element_prop=item.element.prop_ref,
+                element_callback=Coerce('coyaml_state_fun',
+                    Ref(item.element.prop_func)),
+                ))
+            item.prop_func = 'coyaml_array'
+            item.prop_ref = Ref(Subscript(Ident(self.prefix+'_array_vars'),
+                Int(len(self.states['array'].content)-1)))
         else:
             raise NotImplementedError(item)
 
-    def type_visitor(self, data, path=()):
-        data.path = path
-        if isinstance(data, load.Usertype):
-            mem = load.Group(data.members)
-            mem.start_mark = data.start_mark
-            child = self.type_visitor(mem, path=path)
-            res = CUsertype(data, child, path=path)
-            self.types['Usertype'].append(res)
-        elif isinstance(data, load.Mapping):
-            res = CMapping(data)
-            res.element_size = 'sizeof({0}_m_{1}_{2}_t)'.format(
-                self.cfg.name, ctypename(data.key_element),
-                    ctypename(data.value_element))
-            res.key_prop = self.type_visitor(data.key_element, path+('key',))
-            if isinstance(res.key_prop, CCustom):
-                res.key_defaults = '(coyaml_defaults_fun)&{0}_defaults_{1}'\
-                    .format(self.cfg.name, ctypename(data.key_element))
-            res.value_prop = self.type_visitor(data.value_element,
-                path+('value',))
-            if isinstance(res.value_prop, CCustom):
-                res.value_defaults = '(coyaml_defaults_fun)&{0}_defaults_{1}'\
-                    .format(self.cfg.name, ctypename(data.value_element))
-            self.types['Mapping'].append(res)
-        elif isinstance(data, load.Array):
-            res = CArray(data)
-            res.element_size = 'sizeof({0}_a_{1}_t)'.format(
-                self.cfg.name, ctypename(data.element))
-            res.element_prop = self.type_visitor(data.element, path+('value',))
-            if isinstance(res.element_prop, CCustom):
-                res.element_defaults = '(coyaml_defaults_fun)&{0}_defaults_{1}'\
-                    .format(self.cfg.name, ctypename(data.element))
-            self.types['Array'].append(res)
-        elif isinstance(data, dict):
-            children = []
-            for k, v in data.items():
-                chpath = path + (k,)
-                typ = self.type_visitor(v, chpath)
-                children.append(CTransition(k, typ, path=chpath))
-            if children:
-                children.append(None)
-                self.types['transition'].extend(children)
-            res = CGroup(data, children and children[0] or None, path=path)
-            self.types['dict'].append(res)
+    def mkstate(self, item, struct_name, member):
+        if isinstance(item, load.Int):
+            self.states['int'](StrValue(
+                baseoffset=Call('offsetof', [ Ident(struct_name),
+                    mem2dotname(member) ]),
+                min=Int(getattr(item, 'min', 0)),
+                max=Int(getattr(item, 'max', 0)),
+                bitmask=Int(bitmask(
+                    hasattr(item, 'min'),
+                    hasattr(item, 'max'),
+                ))))
+            item.prop_func = 'coyaml_int'
+            item.prop_ref = Ref(Subscript(Ident(self.prefix+'_int_vars'),
+                Int(len(self.states['int'].content)-1)))
+        elif isinstance(item, load.UInt):
+            self.states['uint'](StrValue(
+                baseoffset=Call('offsetof', [ Ident(struct_name),
+                    mem2dotname(member) ]),
+                min=Int(getattr(item, 'min', 0)),
+                max=Int(getattr(item, 'max', 0)),
+                bitmask=Int(bitmask(
+                    hasattr(item, 'min'),
+                    hasattr(item, 'max'),
+                ))))
+            item.prop_func = 'coyaml_uint'
+            item.prop_ref = Ref(Subscript(Ident(self.prefix+'_uint_vars'),
+                Int(len(self.states['uint'].content)-1)))
+        elif isinstance(item, load.String):
+            self.states['string'](StrValue(
+                baseoffset=Call('offsetof', [ Ident(struct_name),
+                    mem2dotname(member) ]),
+                ))
+            item.prop_func = 'coyaml_string'
+            item.prop_ref = Ref(Subscript(Ident(self.prefix+'_string_vars'),
+                Int(len(self.states['string'].content)-1)))
+        elif isinstance(item, load.File):
+            self.states['file'](StrValue(
+                baseoffset=Call('offsetof', [ Ident(struct_name),
+                    mem2dotname(member) ]),
+                bitmask=Int(bitmask(hasattr(item, 'warn_outside'))),
+                check_existence=cbool(getattr(item, 'check_existence', False)),
+                check_dir=cbool(getattr(item, 'check_dir', False)),
+                check_writable=cbool(getattr(item, 'check_writable', False)),
+                warn_outside=String(getattr(item, 'warn_outside', "")),
+                ))
+            item.prop_func = 'coyaml_file'
+            item.prop_ref = Ref(Subscript(Ident(self.prefix+'_file_vars'),
+                Int(len(self.states['file'].content)-1)))
+        elif isinstance(item, load.Dir):
+            self.states['dir'](StrValue(
+                baseoffset=Call('offsetof', [ Ident(struct_name),
+                    mem2dotname(member) ]),
+                check_existence=cbool(getattr(item, 'check_existence', False)),
+                check_dir=cbool(getattr(item, 'check_dir', False)),
+                ))
+            item.prop_func = 'coyaml_dir'
+            item.prop_ref = Ref(Subscript(Ident(self.prefix+'_dir_vars'),
+                Int(len(self.states['dir'].content)-1)))
         else:
-            tname = data.__class__.__name__
-            res = ctypes[tname](data)
-            self.types[tname].append(res)
-        return res
-
-    def type_enum(self):
-        for lst in self.types.values():
-            for i, t in enumerate(lst):
-                if t is None:
-                    continue
-                t.index = i
-        if 'Struct' in self.types:
-            for t in self.types['Struct']:
-                t.usertype = self.cfg.types[t.typename].ctype
-
-    def make_defaultfuncs(self):
-        self.lines.append('')
-        for k, lst in self.defaultfuncs.items():
-            self.lines.append('void {prefix}_defaults_{1}'
-                '({0} *target);'.format(k, k[len(self.cfg.name)+1:-2],
-                prefix=self.cfg.name))
-        self.lines.append('')
-        for k, lst in self.defaultfuncs.items():
-            if '_a_' in k or '_m_' in k:
-                continue
-            self.lines.append('void {prefix}_defaults_{1}'
-                '({0} *target) {{'.format(k, k[len(self.cfg.name)+1:-2],
-                prefix=self.cfg.name))
-            uniq = set()
-            for mem, val in lst:
-                if mem in uniq:
-                    continue
-                uniq.add(mem)
-                if val in self.defaultfuncs:
-                    self.lines.append('    {prefix}_defaults_{0}(&target->{1});'
-                        .format(val[len(self.cfg.name)+1:-2], mem,
-                            prefix=self.cfg.name))
-                else:
-                    self.lines.append('    target->{0} = {1};'.format(mem, val))
-            self.lines.append('}')
-
+            raise NotImplementedError(item)
 
 def main():
     from .cli import simple
     from .load import load
+    from .textast import Ast
     cfg, inp, opt = simple()
     with inp:
         load(inp, cfg)
     generator = GenCCode(cfg)
-    ast = Ast()
-    generator.make(ast)
+    with Ast() as ast:
+        generator.make(ast)
     print(str(ast))
 
 if __name__ == '__main__':

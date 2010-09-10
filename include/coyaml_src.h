@@ -43,13 +43,11 @@ typedef struct coyaml_tag_s {
 // `baseoffset` must be first everywhere
 typedef struct coyaml_group_s {
     int baseoffset;
-    int bitmask;
     coyaml_transition_t *transitions;
 } coyaml_group_t;
 
 typedef struct coyaml_usertype_s {
     int baseoffset;
-    int bitmask;
     struct coyaml_group_s *group;
     coyaml_tag_t *tags;
     coyaml_convert_fun *scalar_fun;
@@ -57,7 +55,6 @@ typedef struct coyaml_usertype_s {
 
 typedef struct coyaml_custom_s {
     int baseoffset;
-    int bitmask;
     struct coyaml_usertype_s *usertype;
 } coyaml_custom_t;
 
@@ -88,7 +85,7 @@ typedef struct coyaml_float_s {
 
 typedef struct coyaml_array_s {
     int baseoffset;
-    int element_size;
+    size_t element_size;
     void *element_prop;
     coyaml_defaults_fun element_defaults;
     coyaml_state_fun element_callback;
@@ -96,7 +93,7 @@ typedef struct coyaml_array_s {
 
 typedef struct coyaml_mapping_s {
     int baseoffset;
-    int element_size;
+    size_t element_size;
     void *key_prop;
     void *value_prop;
     coyaml_state_fun key_callback;
@@ -116,7 +113,6 @@ typedef struct coyaml_file_s {
 
 typedef struct coyaml_dir_s {
     int baseoffset;
-    int bitmask;
     bool check_existence;
     bool check_dir;
 } coyaml_dir_t;
@@ -130,40 +126,40 @@ typedef struct coyaml_option_s {
     void *prop;
 } coyaml_option_t;
 
-int coyaml_CGroup(coyaml_parseinfo_t *info,
+int coyaml_group(coyaml_parseinfo_t *info,
     coyaml_group_t *prop, void *target);
-int coyaml_CInt(coyaml_parseinfo_t *info,
+int coyaml_int(coyaml_parseinfo_t *info,
     coyaml_int_t *prop, void *target);
-int coyaml_CUInt(coyaml_parseinfo_t *info,
+int coyaml_uint(coyaml_parseinfo_t *info,
     coyaml_uint_t *prop, void *target);
-int coyaml_Bool(coyaml_parseinfo_t *info,
+int coyaml_bool(coyaml_parseinfo_t *info,
     coyaml_bool_t *prop, void *target);
-int coyaml_CFloat(coyaml_parseinfo_t *info,
+int coyaml_float(coyaml_parseinfo_t *info,
     coyaml_float_t *prop, void *target);
-int coyaml_CArray(coyaml_parseinfo_t *info,
+int coyaml_array(coyaml_parseinfo_t *info,
     coyaml_array_t *prop, void *target);
-int coyaml_CMapping(coyaml_parseinfo_t *info,
+int coyaml_mapping(coyaml_parseinfo_t *info,
     coyaml_mapping_t *prop, void *target);
-int coyaml_CFile(coyaml_parseinfo_t *info,
+int coyaml_file(coyaml_parseinfo_t *info,
     coyaml_file_t *prop, void *target);
-int coyaml_CDir(coyaml_parseinfo_t *info,
+int coyaml_dir(coyaml_parseinfo_t *info,
     coyaml_dir_t *prop, void *target);
-int coyaml_CString(coyaml_parseinfo_t *info,
+int coyaml_string(coyaml_parseinfo_t *info,
     coyaml_string_t *prop, void *target);
-int coyaml_CCustom(coyaml_parseinfo_t *info,
+int coyaml_custom(coyaml_parseinfo_t *info,
     coyaml_custom_t *prop, void *target);
 
-int coyaml_CInt_o(char *value, coyaml_int_t *prop, void *target);
-int coyaml_CInt_incr_o(char *value, coyaml_int_t *prop, void *target);
-int coyaml_CInt_decr_o(char *value, coyaml_int_t *prop, void *target);
-int coyaml_CUInt_o(char *value, coyaml_uint_t *prop, void *target);
-int coyaml_CUInt_incr_o(char *value, coyaml_uint_t *prop, void *target);
-int coyaml_CUInt_incr_o(char *value, coyaml_uint_t *prop, void *target);
-int coyaml_Bool_o(char *value, coyaml_bool_t *prop, void *target);
-int coyaml_CFloat_o(char *value, coyaml_float_t *prop, void *target);
-int coyaml_CFile_o(char *value, coyaml_file_t *prop, void *target);
-int coyaml_CDir_o(char *value, coyaml_dir_t *prop, void *target);
-int coyaml_CString_o(char *value, coyaml_string_t *prop, void *target);
+int coyaml_int_o(char *value, coyaml_int_t *prop, void *target);
+int coyaml_int_incr_o(char *value, coyaml_int_t *prop, void *target);
+int coyaml_int_decr_o(char *value, coyaml_int_t *prop, void *target);
+int coyaml_uint_o(char *value, coyaml_uint_t *prop, void *target);
+int coyaml_uint_incr_o(char *value, coyaml_uint_t *prop, void *target);
+int coyaml_uint_incr_o(char *value, coyaml_uint_t *prop, void *target);
+int coyaml_bool_o(char *value, coyaml_bool_t *prop, void *target);
+int coyaml_float_o(char *value, coyaml_float_t *prop, void *target);
+int coyaml_file_o(char *value, coyaml_file_t *prop, void *target);
+int coyaml_dir_o(char *value, coyaml_dir_t *prop, void *target);
+int coyaml_string_o(char *value, coyaml_string_t *prop, void *target);
 
 int coyaml_readfile(char *filename, coyaml_group_t *root,
     void *target, bool debug);

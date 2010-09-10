@@ -55,7 +55,9 @@ def makeheader(task):
     with open(src, 'rb') as f:
         coyaml.load.load(f, cfg)
     with open(tgt, 'wt', encoding='utf-8') as f:
-        coyaml.hgen.GenHCode(cfg).write_into(f)
+        with coyaml.textast.Ast() as ast:
+            coyaml.hgen.GenHCode(cfg).make(ast)
+        f.write(str(ast))
 
 def makecode(task):
     src = task.inputs[0].srcpath(task.env)
@@ -64,4 +66,6 @@ def makecode(task):
     with open(src, 'rb') as f:
         coyaml.load.load(f, cfg)
     with open(tgt, 'wt', encoding='utf-8') as f:
-        coyaml.cgen.GenCCode(cfg).write_into(f)
+        with coyaml.textast.Ast() as ast:
+            coyaml.cgen.GenCCode(cfg).make(ast)
+        f.write(str(ast))

@@ -79,7 +79,7 @@ int coyaml_cli_parse(int argc, char **argv, coyaml_cmdline_t *cmdline,
     }
     optind = old_optind;
     if(do_print) {
-        cmdline->print_callback(stdout, target);
+        cmdline->print_callback(stdout, "", target);
     }
     if(do_exit) {
         errno = ECOYAML_CLI_EXIT;
@@ -88,7 +88,7 @@ int coyaml_cli_parse(int argc, char **argv, coyaml_cmdline_t *cmdline,
     return 0;
 }
 
-int coyaml_CInt_o(char *value, coyaml_int_t *def, void *target) {
+int coyaml_int_o(char *value, coyaml_int_t *def, void *target) {
     char *end;
     int val = strtol(value, (char **)&end, 0);
     VALUE_ERROR(end == value + strlen(value),
@@ -100,7 +100,7 @@ int coyaml_CInt_o(char *value, coyaml_int_t *def, void *target) {
     *(int *)(((char *)target)+def->baseoffset) = val;
     return 0;
 }
-int coyaml_CUInt_o(char *value, coyaml_uint_t *def, void *target) {
+int coyaml_uint_o(char *value, coyaml_uint_t *def, void *target) {
     char *end;
     int val = strtol(value, (char **)&end, 0);
     VALUE_ERROR(end == value + strlen(value),
@@ -113,33 +113,33 @@ int coyaml_CUInt_o(char *value, coyaml_uint_t *def, void *target) {
     return 0;
 }
 
-int coyaml_CInt_incr_o(char *value, coyaml_int_t *def, void *target) {
+int coyaml_int_incr_o(char *value, coyaml_int_t *def, void *target) {
     ++*(int *)(((char *)target)+def->baseoffset);
     return 0;
 }
-int coyaml_CInt_decr_o(char *value, coyaml_int_t *def, void *target) {
+int coyaml_int_decr_o(char *value, coyaml_int_t *def, void *target) {
     --*(int *)(((char *)target)+def->baseoffset);
     return 0;
 }
-int coyaml_CUInt_incr_o(char *value, coyaml_uint_t *def, void *target) {
+int coyaml_uint_incr_o(char *value, coyaml_uint_t *def, void *target) {
     ++*(unsigned *)(((char *)target)+def->baseoffset);
     return 0;
 }
-int coyaml_CUInt_decr_o(char *value, coyaml_uint_t *def, void *target) {
+int coyaml_uint_decr_o(char *value, coyaml_uint_t *def, void *target) {
     --*(unsigned *)(((char *)target)+def->baseoffset);
     return 0;
 }
 
-int coyaml_CFile_o(char *value, coyaml_file_t *def, void *target) {
+int coyaml_file_o(char *value, coyaml_file_t *def, void *target) {
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
         &((coyaml_head_t *)target)->pieces, value, strlen(value));
 }
-int coyaml_CDir_o(char *value, coyaml_dir_t *def, void *target) {
+int coyaml_dir_o(char *value, coyaml_dir_t *def, void *target) {
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
         &((coyaml_head_t *)target)->pieces, value, strlen(value));
     //TODO: more checks
 }
-int coyaml_CString_o(char *value, coyaml_string_t *def, void *target) {
+int coyaml_string_o(char *value, coyaml_string_t *def, void *target) {
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
         &((coyaml_head_t *)target)->pieces, value, strlen(value));
     //TODO: more checks

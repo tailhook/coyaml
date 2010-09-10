@@ -217,7 +217,7 @@ void *config;
     SYNTAX_ERROR(info->event.type == YAML_DOCUMENT_START_EVENT);
     CHECK(coyaml_next(info));
 
-    CHECK(coyaml_CGroup(info, root, config));
+    CHECK(coyaml_group(info, root, config));
 
     SYNTAX_ERROR(info->event.type == YAML_DOCUMENT_END_EVENT);
     CHECK(coyaml_next(info));
@@ -255,8 +255,8 @@ int coyaml_readfile(char *filename, coyaml_group_t *root,
 
 }
 
-int coyaml_CGroup(coyaml_parseinfo_t *info, coyaml_group_t *def, void *target) {
-    COYAML_DEBUG("Entering CGroup");
+int coyaml_group(coyaml_parseinfo_t *info, coyaml_group_t *def, void *target) {
+    COYAML_DEBUG("Entering Group");
     SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
     CHECK(coyaml_next(info));
     while(info->event.type == YAML_SCALAR_EVENT) {
@@ -285,12 +285,12 @@ int coyaml_CGroup(coyaml_parseinfo_t *info, coyaml_group_t *def, void *target) {
     }
     SYNTAX_ERROR(info->event.type == YAML_MAPPING_END_EVENT);
     CHECK(coyaml_next(info));
-    COYAML_DEBUG("Leaving CGroup");
+    COYAML_DEBUG("Leaving Group");
     return 0;
 }
 
-int coyaml_CInt(coyaml_parseinfo_t *info, coyaml_int_t *def, void *target) {
-    COYAML_DEBUG("Entering CInt");
+int coyaml_int(coyaml_parseinfo_t *info, coyaml_int_t *def, void *target) {
+    COYAML_DEBUG("Entering Int");
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     unsigned char *end;
     int val = strtol(info->event.data.scalar.value, (char **)&end, 0);
@@ -302,70 +302,70 @@ int coyaml_CInt(coyaml_parseinfo_t *info, coyaml_int_t *def, void *target) {
         "Value must be greater than or equal to %d", def->min);
     *(int *)(((char *)target)+def->baseoffset) = val;
     CHECK(coyaml_next(info));
-    COYAML_DEBUG("Leaving CInt");
+    COYAML_DEBUG("Leaving Int");
     return 0;
 }
 
-int coyaml_CFile(coyaml_parseinfo_t *info, coyaml_file_t *def, void *target) {
-    COYAML_DEBUG("Entering CFile");
+int coyaml_file(coyaml_parseinfo_t *info, coyaml_file_t *def, void *target) {
+    COYAML_DEBUG("Entering File");
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     // TODO: Implement more checks
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
         &info->head->pieces,
         info->event.data.scalar.value, info->event.data.scalar.length);
     CHECK(coyaml_next(info));
-    COYAML_DEBUG("Leaving CFile");
+    COYAML_DEBUG("Leaving File");
     return 0;
 }
 
-int coyaml_CDir(coyaml_parseinfo_t *info, coyaml_dir_t *def, void *target) {
-    COYAML_DEBUG("Entering CDir");
+int coyaml_dir(coyaml_parseinfo_t *info, coyaml_dir_t *def, void *target) {
+    COYAML_DEBUG("Entering Dir");
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     // TODO: Implement more checks
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
         &info->head->pieces,
         info->event.data.scalar.value, info->event.data.scalar.length);
     CHECK(coyaml_next(info));
-    COYAML_DEBUG("Leaving CDir");
+    COYAML_DEBUG("Leaving Dir");
     return 0;
 }
 
-int coyaml_CString(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) {
-    COYAML_DEBUG("Entering CString");
+int coyaml_string(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) {
+    COYAML_DEBUG("Entering String");
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
         &info->head->pieces,
         info->event.data.scalar.value, info->event.data.scalar.length);
     CHECK(coyaml_next(info));
-    COYAML_DEBUG("Leaving CString");
+    COYAML_DEBUG("Leaving String");
     return 0;
 }
 
 int coyaml_CUsertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *target) {
-    COYAML_DEBUG("Entering CUsertype");
+    COYAML_DEBUG("Entering Usertype");
     if(info->event.type == YAML_SCALAR_EVENT) {
         COYAML_ASSERT(!"Not Implemented");
     }
     SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
-    CHECK(coyaml_CGroup(info, def->group, target));
-    COYAML_DEBUG("Leaving CUsertype");
+    CHECK(coyaml_group(info, def->group, target));
+    COYAML_DEBUG("Leaving Usertype");
     return 0;
 }
 
-int coyaml_CCustom(coyaml_parseinfo_t *info, coyaml_custom_t *def, void *target) {
-    COYAML_DEBUG("Entering CCustom");
+int coyaml_custom(coyaml_parseinfo_t *info, coyaml_custom_t *def, void *target) {
+    COYAML_DEBUG("Entering Custom");
     if(info->event.type == YAML_SCALAR_EVENT) {
         COYAML_ASSERT(!"Not Implemented");
     }
     SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
     CHECK(coyaml_CUsertype(info, def->usertype,
         ((char *)target)+def->baseoffset));
-    COYAML_DEBUG("Leaving CCustom");
+    COYAML_DEBUG("Leaving Custom");
     return 0;
 }
 
-int coyaml_CMapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *target) {
-    COYAML_DEBUG("Entering CMapping");
+int coyaml_mapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *target) {
+    COYAML_DEBUG("Entering Mapping");
     SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
     CHECK(coyaml_next(info));
     coyaml_mappingel_head_t *lastel = NULL;
@@ -390,12 +390,12 @@ int coyaml_CMapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *targe
     }
     SYNTAX_ERROR(info->event.type == YAML_MAPPING_END_EVENT);
     CHECK(coyaml_next(info));
-    COYAML_DEBUG("Leaving CMapping");
+    COYAML_DEBUG("Leaving Mapping");
     return 0;
 }
 
-int coyaml_CArray(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
-    COYAML_DEBUG("Entering CArray");
+int coyaml_array(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
+    COYAML_DEBUG("Entering Array");
     SYNTAX_ERROR(info->event.type == YAML_SEQUENCE_START_EVENT);
     CHECK(coyaml_next(info));
     coyaml_arrayel_head_t *lastel = NULL;
@@ -416,6 +416,6 @@ int coyaml_CArray(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
     }
     SYNTAX_ERROR(info->event.type == YAML_SEQUENCE_END_EVENT);
     CHECK(coyaml_next(info));
-    COYAML_DEBUG("Leaving CArray");
+    COYAML_DEBUG("Leaving Array");
     return 0;
 }

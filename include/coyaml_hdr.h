@@ -18,6 +18,8 @@ typedef int bool;
 #define ECOYAML_CLI_HELP (ECOYAML_MIN+5)
 #define ECOYAML_MAX (ECOYAML_MIN+5)
 
+typedef void (*coyaml_print_fun)(FILE *out, char *prefix, void *cfg);
+
 typedef struct coyaml_head_s {
     struct obstack pieces;
     bool free_object;
@@ -40,7 +42,7 @@ typedef struct coyaml_cmdline_s {
     int *optidx;
     struct option *options;
     struct coyaml_option_s *coyaml_options;
-    void (*print_callback)(FILE *output, void *cfg);
+    coyaml_print_fun print_callback;
 } coyaml_cmdline_t;
 
 int coyaml_cli_prepare(int argc, char **argv, coyaml_cmdline_t *);

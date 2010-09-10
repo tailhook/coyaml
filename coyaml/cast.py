@@ -3,20 +3,21 @@ from .textast import Node, VSpace, ListConstraint as List, lazy, Ast
 from .cutil import string
 from collections import OrderedDict
 
-__ast__ = [
-    'Ident',
-    'Typename',
+__all__ = [
+    'VSpace',
     'CommentBlock',
-    'StdInclude',
-    'Var',
-    'Param',
-    'Struct',
-    'TypeDef',
-    'Arr',
-    'ArrArr',
-    'Expression',
-    'For',
-    'If',
+    'Include', 'StdInclude', 'Define',
+    'Ident',
+    'TypeDef', 'Typename', 'Struct', 'AnonStruct', 'Void',
+    'Param', 'Var', 'FVar', 'VarAssign', 'Assign',
+    'Arr', 'ArrArr', 'StrValue',
+    'Member', 'Dot', 'Subscript', 'Ref', 'Deref',
+    'Expression', 'Statement',
+    'For', 'If', 'Return',
+    'Func', 'Function', 'Call',
+    'Int', 'Float', 'String', 'Coerce',
+    'Add', 'Mul', 'Div', 'Sub', 'Not', 'Ternary',
+    'Gt', 'Lt', 'Ge', 'Le', 'Eq', 'Neq', 'And', 'Or',
     ]
 
 class Ident(Node):
@@ -39,11 +40,122 @@ class Dot(Node):
 class Member(Node):
     __slots__ = OrderedDict([
         ('source', lazy.Expression),
-        ('name', Ident),
+        ('name', (Ident, Dot)),
         ])
     line_format = '{source}->{name}'
 
+class Subscript(Node):
+    __slots__ = OrderedDict([
+        ('source', lazy.Expression),
+        ('expr', lazy.Expression),
+        ])
+    line_format = '{source}[{expr}]'
+
+class Add(Node):
+    __slots__ = OrderedDict([
+        ('left', lazy.Expression),
+        ('right', lazy.Expression),
+        ])
+    line_format = '{left}+{right}'
+
+class Sub(Node):
+    __slots__ = OrderedDict([
+        ('left', lazy.Expression),
+        ('right', lazy.Expression),
+        ])
+    line_format = '{left}-{right}'
+
+class Mul(Node):
+    __slots__ = OrderedDict([
+        ('left', lazy.Expression),
+        ('right', lazy.Expression),
+        ])
+    line_format = '{left}*{right}'
+
+class Div(Node):
+    __slots__ = OrderedDict([
+        ('left', lazy.Expression),
+        ('right', lazy.Expression),
+        ])
+    line_format = '{left}/{right}'
+
+class Eq(Node):
+    __slots__ = OrderedDict([
+        ('left', lazy.Expression),
+        ('right', lazy.Expression),
+        ])
+    line_format = '{left} == {right}'
+
+class Neq(Node):
+    __slots__ = OrderedDict([
+        ('left', lazy.Expression),
+        ('right', lazy.Expression),
+        ])
+    line_format = '{left} != {right}'
+
+class Lt(Node):
+    __slots__ = OrderedDict([
+        ('left', lazy.Expression),
+        ('right', lazy.Expression),
+        ])
+    line_format = '{left} < {right}'
+
+class Gt(Node):
+    __slots__ = OrderedDict([
+        ('left', lazy.Expression),
+        ('right', lazy.Expression),
+        ])
+    line_format = '{left} > {right}'
+
+class Le(Node):
+    __slots__ = OrderedDict([
+        ('left', lazy.Expression),
+        ('right', lazy.Expression),
+        ])
+    line_format = '{left} <= {right}'
+
+class Ge(Node):
+    __slots__ = OrderedDict([
+        ('left', lazy.Expression),
+        ('right', lazy.Expression),
+        ])
+    line_format = '{left} >= {right}'
+
+class And(Node):
+    __slots__ = OrderedDict([
+        ('left', lazy.Expression),
+        ('right', lazy.Expression),
+        ])
+    line_format = '{left} && {right}'
+
+class Or(Node):
+    __slots__ = OrderedDict([
+        ('left', lazy.Expression),
+        ('right', lazy.Expression),
+        ])
+    line_format = '{left} || {right}'
+
+class Ternary(Node):
+    __slots__ = OrderedDict([
+        ('cond', lazy.Expression),
+        ('left', lazy.Expression),
+        ('right', lazy.Expression),
+        ])
+    line_format = '({cond}) ? {left} : {right}'
+
+class Not(Node):
+    __slots__ = OrderedDict([
+        ('expr', lazy.Expression),
+        ])
+    line_format = '!{expr}'
+
 class Deref(Node):
+    __slots__ = OrderedDict([
+        ('source', lazy.Expression),
+        ])
+    line_format = '*{source}'
+
+class Ref(Node):
     __slots__ = OrderedDict([
         ('source', lazy.Expression),
         ])
@@ -56,7 +168,7 @@ class Typename(Node):
     re_typename = re.compile('''^
         (?:(?:const|static)\s+)?
         (?:(?:unsigned|signed)\s+)?
-        (?:char|short|int|long|bool|float|double|\w+_t|FILE)
+        (?:char|short|int|long|bool|float|double|\w+_t|\w+_fun|FILE)
         \s*(?:\*\s*)* |
         struct\s+\w+
         \s*(?:\*\s*)*
@@ -70,6 +182,13 @@ class Void(Node):
     line_format = 'void'
 
 _type = (Typename, Void, lazy.Struct, lazy.AnonStruct)
+
+class Coerce(Node):
+    __slots__ = OrderedDict([
+        ('type', _type),
+        ('expr', lazy.Expression),
+        ])
+    line_format = '({type}){expr}'
 
 class CommentBlock(Node):
     __slots__ = OrderedDict([
@@ -94,6 +213,13 @@ class Include(Node):
         ])
     top = True
     line_format = '#include "{filename}"'
+
+class Define(Node):
+    __slots__ = OrderedDict([
+        ('name', Ident),
+        ])
+    top = True
+    line_format = '#define {name}'
 
 class Var(Node):
     __slots__ = OrderedDict([
@@ -131,7 +257,9 @@ class String(Node):
 
 class Expression(Node):
     __slots__ = OrderedDict([
-        ('expr', (Ident, Int, Float, String, Dot, Member,
+        ('expr', (Ident, Int, Float, String, Dot, Member, Ref, Deref, Subscript,
+            Add, Sub, Mul, Div, Not, Coerce,
+            Lt, Gt, Le, Ge, Eq, Neq, And, Or, Ternary,
             lazy.Call, lazy.StrValue, lazy.Assign)),
         ])
     line_format = '{expr}'
@@ -182,6 +310,13 @@ class VarAssign(Var):
         ])
     top = True
     line_format = '{static }{type} {name}{array} = {expr};'
+
+class Return(Var):
+    __slots__ = OrderedDict([
+        ('expr', lazy.Expression),
+        ])
+    top = True
+    line_format = 'return {expr};'
 
 class FVar(Var):
     __slots__ = OrderedDict([
@@ -282,7 +417,7 @@ class If(Node):
         ('body', List(Node)),
         ])
     top = True
-    block_start = 'If({cond}) {{'
+    block_start = 'if({cond}) {{'
     block_end = '}}'
 
 lazy.fix(globals())

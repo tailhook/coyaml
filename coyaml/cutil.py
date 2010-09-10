@@ -34,3 +34,6 @@ def typename(typ):
     if isinstance(typ, load.Struct):
         return typ.type
     return _typenames[typ.__class__]
+
+def cbool(val):
+    return 'TRUE' if val else 'FALSE'

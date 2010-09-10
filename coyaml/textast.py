@@ -142,12 +142,15 @@ lazy = _Lazy() # Hi, I'm a singleton.
 class _FutureChildren(object):
     def __init__(self):
         self.content = List(None)
+        self.zones = {}
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        pass
+        for (i, v) in enumerate(self.content):
+            if isinstance(v, _Zone):
+                self.content[i:i+1] = v.content
 
     def __call__(self, node):
         self.content.append(node)
@@ -165,6 +168,20 @@ class _FutureChildren(object):
 
     def block(self):
         return _FutureChildren()
+
+    def zone(self, name=None):
+        if name is not None:
+            res = self.zones.get(name)
+            if res is not None:
+                return res
+            res = self.zones[name] = _Zone()
+        else:
+            res = _Zone()
+        self.content.append(res)
+        return res
+
+class _Zone(_FutureChildren):
+    pass
 
 class _Block(object):
     def __init__(self, stream, indent, full_line):
@@ -235,15 +252,39 @@ class _Stream(object):
 class Ast(object):
     def __init__(self):
         self.body = []
+        self.zones = {}
 
     def __str__(self):
         stream = _Stream(self)
         for i in self.body:
-            i.format(stream)
+            if isinstance(i, _Zone): # bad shit, don't know why need this
+                for j in i.content:
+                    j.format(stream)
+            else:
+                i.format(stream)
         return stream.getvalue()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        for (i, v) in enumerate(self.body):
+            if isinstance(v, _Zone):
+                self.body[i:i+1] = v.content
 
     def block(self):
         return _FutureChildren()
+
+    def zone(self, name=None):
+        if name is not None:
+            res = self.zones.get(name)
+            if res is not None:
+                return res
+            res = self.zones[name] = _Zone()
+        else:
+            res = _Zone()
+        self.body.append(res)
+        return res
 
     def __call__(self, node):
         self.body.append(node)

@@ -1,0 +1,17 @@
+
+Server:
+    port: 3333
+
+Routing:
+    list:
+        - value: hello
+    map:
+        one:
+            list:
+                - value: hello
+                - value: world
+        two:
+            value: yahoo
+            map:
+                hello:
+                    value: world
