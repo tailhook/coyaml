@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+
+import coyaml.cgen, coyaml.hgen, coyaml.core, coyaml.load
+
+import sys
+import os.path
+
+def main():
+    for src in sys.argv[1:]:
+        cfg = coyaml.core.Config('config',
+            os.path.splitext(os.path.basename(src))[0])
+        with open(src, 'rb') as f:
+            coyaml.load.load(f, cfg)
+        tgt = os.path.splitext(src)[0] + '.h'
+        assert tgt != src
+        with open(tgt, 'wt', encoding='utf-8') as f:
+            with coyaml.textast.Ast() as ast:
+                coyaml.hgen.GenHCode(cfg).make(ast)
+            f.write(str(ast))
+        tgt = os.path.splitext(src)[0] + '.c'
+        assert tgt != src
+        with open(tgt, 'wt', encoding='utf-8') as f:
+            with coyaml.textast.Ast() as ast:
+                coyaml.cgen.GenCCode(cfg).make(ast)
+            f.write(str(ast))
+
+if __name__ == '__main__':
+    main()
