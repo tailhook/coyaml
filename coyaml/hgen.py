@@ -1,6 +1,6 @@
 
 from . import load
-from .cutil import varname, typename, string_types
+from .cutil import varname, typename, string_types, makevar
 from .cast import *
 from .textast import VSpace
 
@@ -19,9 +19,17 @@ class GenHCode(object):
         ast(StdInclude('coyaml_hdr.h'))
         ast(VSpace())
         for sname, struct in self.cfg.types.items():
+            if hasattr(struct, 'tags'):
+                tagtyp = self.prefix+'_'+sname+'_tag_t'
+                with ast(TypeDef(Enum(ast.block()), tagtyp)) as enum:
+                    for k, v in struct.tags.items():
+                        enum(EnumVal(self.prefix.upper()+'_'+makevar(k), v))
+                ast(VSpace())
             cname = self.prefix+'_'+sname
             with ast(TypeDef(Struct(cname+'_s', ast.block()),
                 cname+'_t')) as s:
+                if hasattr(struct, 'tags'):
+                    s(Var(tagtyp, struct.tagname))
                 self._struct_body(s, struct.members, root=ast)
             ast(VSpace())
         with ast(TypeDef(Struct(self.prefix+'_main_s', ast.block()),

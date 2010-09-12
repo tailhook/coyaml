@@ -9,6 +9,7 @@ __all__ = [
     'Include', 'StdInclude', 'Define',
     'Ident',
     'TypeDef', 'Typename', 'Struct', 'AnonStruct', 'Void',
+    'Enum', 'EnumItem', 'EnumVal',
     'Param', 'Var', 'FVar', 'VarAssign', 'Assign',
     'Arr', 'ArrArr', 'StrValue',
     'Member', 'Dot', 'Subscript', 'Ref', 'Deref',
@@ -18,6 +19,7 @@ __all__ = [
     'Int', 'Float', 'String', 'Coerce',
     'Add', 'Mul', 'Div', 'Sub', 'Not', 'Ternary',
     'Gt', 'Lt', 'Ge', 'Le', 'Eq', 'Neq', 'And', 'Or',
+    'NULL',
     ]
 
 class Ident(Node):
@@ -181,7 +183,7 @@ class Void(Node):
     __slots__ = {}
     line_format = 'void'
 
-_type = (Typename, Void, lazy.Struct, lazy.AnonStruct)
+_type = (Typename, Void, lazy.Struct, lazy.AnonStruct, lazy.Enum)
 
 class Coerce(Node):
     __slots__ = OrderedDict([
@@ -347,7 +349,6 @@ class Struct(Node):
         ('name', Ident),
         ('body', List(Var)),
         ])
-    top = True
     block_start = 'struct {name} {{'
     block_end = '}}'
 
@@ -355,8 +356,27 @@ class AnonStruct(Node):
     __slots__ = OrderedDict([
         ('body', List(Var)),
         ])
-    top = True
     block_start = 'struct {{'
+    block_end = '}}'
+
+class EnumItem(Node):
+    __slots__ = OrderedDict([
+        ('name', Ident),
+        ])
+    line_format = '{name},'
+
+class EnumVal(Node):
+    __slots__ = OrderedDict([
+        ('name', Ident),
+        ('val', (Int, lazy.Expression)),
+        ])
+    line_format = '{name} = {val},'
+
+class Enum(Node):
+    __slots__ = OrderedDict([
+        ('body', List(EnumItem, EnumVal)),
+        ])
+    block_start = 'enum {{'
     block_end = '}}'
 
 class TypeDef(Node):
@@ -421,6 +441,8 @@ class If(Node):
     block_end = '}}'
 
 lazy.fix(globals())
+
+NULL = Ident('NULL')
 
 if __name__ == '__main__':
     def sample(ast):

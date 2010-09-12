@@ -2,8 +2,6 @@ import collections
 
 import yaml
 
-from .core import Config, Usertype
-from .util import varname
 
 class Group(collections.OrderedDict):
     __slots__ = ('start_mark',)
@@ -96,7 +94,7 @@ class Struct(yaml.YAMLObject):
     def __setstate__(self, state):
         typ = state.pop('=', None)
         for k, v in state.items():
-            setattr(self, k, v)
+            setattr(self, varname(k), v)
         if typ is not None:
             self.type = typ
 
@@ -118,6 +116,9 @@ class Convert(yaml.YAMLObject):
     @classmethod
     def from_yaml(cls, Loader, node):
         return cls(Loader.construct_scalar(node))
+
+from .core import Config, Usertype # sorry, circular dependency
+from .util import varname
 
 def load(input, config):
     data = yaml.load(input, Loader=ConfigLoader)

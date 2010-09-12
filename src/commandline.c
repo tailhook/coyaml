@@ -144,3 +144,7 @@ int coyaml_string_o(char *value, coyaml_string_t *def, void *target) {
         &((coyaml_head_t *)target)->pieces, value, strlen(value));
     //TODO: more checks
 }
+int coyaml_custom_o(char *value, coyaml_custom_t *def, void *target) {
+    def->usertype->scalar_fun(NULL, value, def->usertype,
+        (void *)(((char *)target)+def->baseoffset));
+}

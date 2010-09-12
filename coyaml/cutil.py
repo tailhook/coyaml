@@ -37,3 +37,6 @@ def typename(typ):
 
 def cbool(val):
     return 'TRUE' if val else 'FALSE'
+
+def makevar(val):
+    return varname(val).replace('.', '_').replace(' ', '_')

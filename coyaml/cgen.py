@@ -3,6 +3,7 @@ from collections import defaultdict
 from contextlib import nested
 
 from . import load, core
+from .util import builtin_conversions
 from .cutil import varname, string, typename, cbool
 from .cast import *
 
@@ -235,6 +236,7 @@ class GenCCode(object):
                         Ref(opt.target.prop_func+'_o')),
                     prop=opt.target.prop_ref,
                     ))
+            cmd(StrValue(name=NULL, val=Int(0), flag='NULL', has_arg='FALSE')),
         ast(VarAssign('int', self.prefix+'_optidx',
             Arr(list(map(Int, optidx))), static=True, array=(None,)))
         stroptions = []
@@ -360,6 +362,7 @@ class GenCCode(object):
             if fname not in self.print_functions:
                 self.print_functions.add(fname)
                 typname = self.prefix+'_'+item.type+'_t'
+                utype = self.cfg.types[item.type]
                 tranname = Ident('transitions_{0}'.format(self.lasttran))
                 self.lasttran += 1
                 with root.zone('print_funcs')(Function('int', fname, [
@@ -374,7 +377,7 @@ class GenCCode(object):
                     with root.zone('default_funcs')(Function('int', defname, [
                         Param(typname+' *', 'cfg'),
                         ], root.block())) as cdef:
-                        for k, v in self.cfg.types[item.type].members.items():
+                        for k, v in utype.members.items():
                             self._visit_hier(v, k, typname,
                                 '', Member('cfg', varname(k)),
                                 past=cur, pfun=cur, dast=cdef, root=root)
@@ -393,13 +396,34 @@ class GenCCode(object):
                         mem2dotname(mem) ]),
                     transitions=tranname,
                     ))
-                root.zone('usertypes')(VarAssign('coyaml_usertype_t',
+                uzone = root.zone('usertypes')
+                if hasattr(utype, 'tags'):
+                    tagvar = self.prefix+'_'+item.type+'_tags'
+                    uzone(VarAssign('coyaml_tag_t', tagvar, Arr([
+                        StrValue(tagname=String('!'+k), tagvalue=Int(v))
+                        for k, v in utype.tags.items() ]
+                        + [ StrValue(tagname=NULL, tagvalue=Int(0)) ]),
+                        static=True, array=(None,)))
+                else:
+                    tagvar = 'NULL'
+                uzone(Func('int', defname, [ Param(typname+' *', 'cfg') ]))
+                conv_fun = getattr(utype, 'convert', None)
+                if conv_fun is not None and conv_fun not in builtin_conversions:
+                    uzone(Func('int', utype.convert, [
+                        Param('coyaml_parseinfo_t *', 'info'),
+                        Param('char *', 'value'),
+                        Param('coyaml_group_t *', 'group'),
+                        Param(self.prefix+'_'+item.type+'_t *', 'target'),
+                        ]))
+                    uzone(VSpace())
+                uzone(VarAssign('coyaml_usertype_t',
                     self.prefix+'_'+item.type+'_def', StrValue(
                         baseoffset=Int(0),
                         group=Ref(Subscript(Ident(self.prefix+'_group_vars'),
                             Int(len(self.states['group'].content)-1))),
-                        tags=Ident('NULL'),
-                        scalar_fun=Ident('NULL'),
+                        tags=Ident(tagvar),
+                        scalar_fun=Coerce('coyaml_convert_fun', conv_fun)
+                            if conv_fun else NULL,
                     ), static=True))
             if name is not None:
                 past(Statement(Call('fprintf', [ Ident('out'),
@@ -474,9 +498,15 @@ class GenCCode(object):
                 key_prop=item.key_element.prop_ref,
                 key_callback=Coerce('coyaml_state_fun',
                     item.key_element.prop_func),
+                key_defaults=Coerce('coyaml_defaults_fun',
+                    self.prefix+'_defaults_'+item.key_element.type)
+                    if isinstance(item.key_element, load.Struct) else NULL,
                 value_prop=item.value_element.prop_ref,
                 value_callback=Coerce('coyaml_state_fun',
                     item.value_element.prop_func),
+                value_defaults=Coerce('coyaml_defaults_fun',
+                    self.prefix+'_defaults_'+item.value_element.type)
+                    if isinstance(item.value_element, load.Struct) else NULL,
                 ))
             item.prop_func = 'coyaml_mapping'
             item.prop_ref = Ref(Subscript(Ident(self.prefix+'_mapping_vars'),
@@ -515,6 +545,9 @@ class GenCCode(object):
                 element_prop=item.element.prop_ref,
                 element_callback=Coerce('coyaml_state_fun',
                     Ref(item.element.prop_func)),
+                element_defaults=Coerce('coyaml_defaults_fun',
+                    self.prefix+'_defaults_'+item.element.type)
+                    if isinstance(item.element, load.Struct) else NULL,
                 ))
             item.prop_func = 'coyaml_array'
             item.prop_ref = Ref(Subscript(Ident(self.prefix+'_array_vars'),

@@ -2,6 +2,7 @@
 #define COYAML_SRC_HEADER
 
 #include <stddef.h>
+#include <yaml.h>
 #include <coyaml_hdr.h>
 
 #define COYAML_CLI_USER 1000
@@ -16,14 +17,37 @@
 #define obstack_chunk_alloc malloc
 #define obstack_chunk_free free
 
-#ifndef COYAML_PARSEINFO
-typedef struct coyaml_parseinfo_s {
-} coyaml_parseinfo_t;
-#endif
+typedef struct coyaml_anchor_s {
+    struct coyaml_anchor_s *next;
+    char *name; // It's allocated in obstack first, we don't need to free it
+    int nevents;
+    yaml_event_t events;
+} coyaml_anchor_t;
 
-typedef int (*coyaml_convert_fun)(coyaml_parseinfo_t *info,
-    char *value, int value_len,
-    void *prop, void *target);
+typedef struct coyaml_parseinfo_s {
+    int debug;
+    char *filename;
+    void *target;
+    yaml_parser_t parser;
+    yaml_event_t event;
+    // Memory allocation structures
+    struct coyaml_head_s *head;
+    // End of memory allocation
+    // Anchors structures
+    int anchor_level;
+    int anchor_pos;
+    int anchor_count;
+    int anchor_event_count;
+    struct obstack anchors;
+    struct coyaml_anchor_s *first;
+    struct coyaml_anchor_s *last;
+    // End anchors
+} coyaml_parseinfo_t;
+
+struct coyaml_usertype_s;
+
+typedef int (*coyaml_convert_fun)(coyaml_parseinfo_t *info, char *value,
+    struct coyaml_usertype_s *prop, void *target);
 typedef int (*coyaml_state_fun)(coyaml_parseinfo_t *info,
     void *prop, void *target);
 typedef int (*coyaml_option_fun)(char *value, void *prop, void *target);
@@ -48,9 +72,10 @@ typedef struct coyaml_group_s {
 
 typedef struct coyaml_usertype_s {
     int baseoffset;
-    struct coyaml_group_s *group;
+    int default_tag;
     coyaml_tag_t *tags;
-    coyaml_convert_fun *scalar_fun;
+    struct coyaml_group_s *group;
+    coyaml_convert_fun scalar_fun;
 } coyaml_usertype_t;
 
 typedef struct coyaml_custom_s {
@@ -160,8 +185,14 @@ int coyaml_float_o(char *value, coyaml_float_t *prop, void *target);
 int coyaml_file_o(char *value, coyaml_file_t *prop, void *target);
 int coyaml_dir_o(char *value, coyaml_dir_t *prop, void *target);
 int coyaml_string_o(char *value, coyaml_string_t *prop, void *target);
+int coyaml_custom_o(char *value, coyaml_custom_t *prop, void *target);
 
 int coyaml_readfile(char *filename, coyaml_group_t *root,
     void *target, bool debug);
+
+int coyaml_tagged_scalar(coyaml_parseinfo_t *info, char *value,
+    struct coyaml_usertype_s *prop, void *target);
+int coyaml_parse_tag(coyaml_parseinfo_t *info,
+    struct coyaml_usertype_s *prop, int *target);
 
 #endif //COYAML_SRC_HEADER

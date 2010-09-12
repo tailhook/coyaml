@@ -1,4 +1,5 @@
 from .util import varname
+from .load import Convert
 
 class Option(object):
     has_argument = True
@@ -31,8 +32,20 @@ class DecrOption(Option):
 class Usertype(object):
     def __init__(self, name, members, **kw):
         self.name = name
+        if '__tags__' in members:
+            tags = members['__tags__']
+            self.tagname = tags.get('__property__', 'tag')
+            if '__default__' in tags:
+                self.defaulttag = tags[tags['__default__']]
+            self.tags = {k:v for k, v in tags.items()
+                if not k.startswith('__')}
         self.members = {k:v for k, v in members.items()
             if not k.startswith('__')}
+        if isinstance(members.get('__value__'), Convert):
+            self.convert = members['__value__'].fun
+        elif members.get('__value__'):
+            self.convert = 'coyaml_tagged_scalar'
+            self.members['value'] = members['__value__']
         for k, v in kw.items():
             setattr(self, k, v)
 

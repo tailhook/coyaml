@@ -71,7 +71,7 @@ SimpleHTTPServer:
       Listen for specified address
     command-line-descr: >
       Listen for specified address. If path startswith "/" it's unix domain
-      socket, else it's tcp
+      socket, otherwise it's tcp
   root: !Dir
     check-existence: yes
     command-line: [ -r, --root ]

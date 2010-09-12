@@ -13,6 +13,10 @@ SimpleHTTPServer:
     - host: 192.168.0.2
     - host: 192.168.0.3
       port: 8080
+    - 192.168.0.5:9980
+    - 192.168.0.9
+    - /var/run/internal_http
+  status-socket: !zmq.Bind tcp://127.0.0.1:1234
   responses:
     default:
         code: 200
@@ -26,4 +30,3 @@ SimpleHTTPServer:
                     This is an empty site, actually!
                 </body>
             </html>
-#  status-socket: !Bind tcp://127.0.0.1:1111/

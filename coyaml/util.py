@@ -12,6 +12,10 @@ reserved = {
     'bool',
     }
 
+builtin_conversions = set([
+    'coyaml_tagged_scalar',
+    ])
+
 def varname(value):
     value = value.replace('-', '_')
     if value[0] in digits:

@@ -5,36 +5,6 @@
 #include <obstack.h>
 #include <strings.h>
 
-#define COYAML_PARSEINFO
-
-typedef struct coyaml_anchor_s {
-    struct coyaml_anchor_s *next;
-    char *name; // It's allocated in obstack first, we don't need to free it
-    int nevents;
-    yaml_event_t events;
-} coyaml_anchor_t;
-
-typedef struct coyaml_parseinfo_s {
-    int debug;
-    char *filename;
-    void *target;
-    yaml_parser_t parser;
-    yaml_event_t event;
-    // Memory allocation structures
-    struct coyaml_head_s *head;
-    jmp_buf memrecover;
-    // End of memory allocation
-    // Anchors structures
-    int anchor_level;
-    int anchor_pos;
-    int anchor_count;
-    int anchor_event_count;
-    struct obstack anchors;
-    struct coyaml_anchor_s *first;
-    struct coyaml_anchor_s *last;
-    // End anchors
-} coyaml_parseinfo_t;
-
 #include <coyaml_src.h>
 
 #define CHECK(cond) if((cond) < 0) { return -1; }
@@ -341,24 +311,26 @@ int coyaml_string(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) 
     return 0;
 }
 
-int coyaml_CUsertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *target) {
+int coyaml_usertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *target) {
     COYAML_DEBUG("Entering Usertype");
     if(info->event.type == YAML_SCALAR_EVENT) {
-        COYAML_ASSERT(!"Not Implemented");
+        SYNTAX_ERROR(def->scalar_fun);
+        CHECK(def->scalar_fun(info,
+            info->event.data.scalar.value, def, target));
+        CHECK(coyaml_next(info));
+    } else {
+        SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
+        CHECK(coyaml_group(info, def->group, target));
     }
-    SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
-    CHECK(coyaml_group(info, def->group, target));
     COYAML_DEBUG("Leaving Usertype");
     return 0;
 }
 
 int coyaml_custom(coyaml_parseinfo_t *info, coyaml_custom_t *def, void *target) {
     COYAML_DEBUG("Entering Custom");
-    if(info->event.type == YAML_SCALAR_EVENT) {
-        COYAML_ASSERT(!"Not Implemented");
-    }
-    SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
-    CHECK(coyaml_CUsertype(info, def->usertype,
+    SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT
+        || info->event.type == YAML_SCALAR_EVENT);
+    CHECK(coyaml_usertype(info, def->usertype,
         ((char *)target)+def->baseoffset));
     COYAML_DEBUG("Leaving Custom");
     return 0;
@@ -417,5 +389,58 @@ int coyaml_array(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
     SYNTAX_ERROR(info->event.type == YAML_SEQUENCE_END_EVENT);
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving Array");
+    return 0;
+}
+
+int coyaml_parse_tag(coyaml_parseinfo_t *info,
+    struct coyaml_usertype_s *prop, int *target) {
+    COYAML_DEBUG("Entering Parse Tag");
+    char *tag = info ? info->event.data.scalar.tag : NULL;
+    if(!tag || !*tag) {
+        if(prop->tags) {
+            SYNTAX_ERROR(prop->default_tag == -1);
+            *target = prop->default_tag;
+        }
+    } else {
+        bool tagset = FALSE;
+        for(coyaml_tag_t *t = prop->tags;t && t->tagname; ++t) {
+            if(!strcmp(t->tagname, tag)) {
+                *target = t->tagvalue;
+                COYAML_DEBUG("Matched tag ``%s'', value %d",
+                    t->tagname, t->tagvalue);
+                tagset = TRUE;
+            }
+        }
+        SYNTAX_ERROR(tagset);
+    }
+    COYAML_DEBUG("Leaving Parse Tag");
+    return 0;
+}
+
+int coyaml_tagged_scalar(coyaml_parseinfo_t *info, char *value,
+    struct coyaml_usertype_s *prop, void *target) {
+    COYAML_DEBUG("Entering Tagged Scalar");
+    CHECK(coyaml_parse_tag(info, prop, (int *)target));
+    coyaml_group_t *gr = prop->group;
+    COYAML_ASSERT(gr);
+    coyaml_transition_t *tr = gr->transitions;
+    COYAML_ASSERT(tr);
+    coyaml_string_t *str = NULL;
+    for(;tr->symbol; ++tr) {
+        if(!strcmp(tr->symbol, "value")) {
+            COYAML_ASSERT(tr->callback == (coyaml_state_fun)coyaml_string);
+            str = tr->prop;
+            break;
+        }
+    }
+    COYAML_ASSERT(str);
+    if(info) {
+        *(char **)(((char *)target)+str->baseoffset) = obstack_copy0(
+            &info->head->pieces,
+            info->event.data.scalar.value, info->event.data.scalar.length);
+    } else {
+        *(char **)(((char *)target)+str->baseoffset) = value; //Dirty hack
+    }
+    COYAML_DEBUG("Leaving Tagged Scalar");
     return 0;
 }
