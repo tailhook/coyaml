@@ -72,6 +72,8 @@ SimpleHTTPServer:
     command-line-descr: >
       Listen for specified address. If path startswith "/" it's unix domain
       socket, otherwise it's tcp
+  directory-indexes: !Array
+    element: !String ~
   root: !Dir
     check-existence: yes
     command-line: [ -r, --root ]

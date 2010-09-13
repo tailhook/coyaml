@@ -529,13 +529,14 @@ class GenCCode(object):
                         Ident('prefix'),
                         Member(Ident('item'), 'value'),
                         ])))
+                    self.mkstate(item.element, astr,
+                        Member(Ident('item'), Ident('value')))
                 else:
                     ploop(Statement(Call('fprintf', [ Ident('out'),
                         String('%s{0}  -\n'.format(pws)),
                         Ident('prefix'),
                         ])))
-                    self._visit_hier(item.element, None, '{0}_a_{1}_t'.format(
-                        self.prefix, typename(item.element)), pws + '  ',
+                    self._visit_hier(item.element, None, astr, pws + '  ',
                         Member(Ident('item'), 'value'),
                         past=ploop, pfun=pfun, dast=None, root=root)
             self.states['array'](StrValue(
