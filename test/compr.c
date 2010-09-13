@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 #include <coyaml_src.h> // needed for convert function
-#include "comprehensivecfg.h"
+#include "comprehensive.h"
 
 cfg_main_t config;
 

@@ -148,7 +148,7 @@ class GenCCode(object):
         with ast(Function(mainptr, self.prefix+'_load', [ Param(mainptr, 'ptr'),
             Param('int','argc'), Param('char**','argv') ], ast.block())) as fun:
             with fun(If(Lt(Call('coyaml_cli_prepare', [ Ident('argc'),
-                Ident('argv'), Ref(Ident('cfg_cmdline')) ]), Int(0)),
+                Ident('argv'), Ref(Ident(self.prefix+'_cmdline')) ]), Int(0)),
                 fun.block())) as if_:
                 with if_(errcheck) as if1:
                     if1(Statement(Call('perror', [
@@ -163,9 +163,9 @@ class GenCCode(object):
                 if_(Statement(Call('exit', [ Int(1) ])))
             with fun(If(Lt(
                 Call(self.prefix+'_readfile', [
-                    Dot(Ident('cfg_cmdline'), 'filename'),
+                    Dot(Ident(self.prefix+'_cmdline'), 'filename'),
                     Ident('ptr'),
-                    Dot(Ident('cfg_cmdline'), 'debug'),
+                    Dot(Ident(self.prefix+'_cmdline'), 'debug'),
                     ]),
                 Int(0)), fun.block())) as if_:
                 if_(errcheck) # reusing ast
@@ -173,7 +173,7 @@ class GenCCode(object):
                 if_(Statement(Call('exit', [ Int(1) ])))
             with fun(If(Lt(
                 Call('coyaml_cli_parse', [ Ident('argc'), Ident('argv'),
-                    Ref(Ident('cfg_cmdline')), Ident('ptr') ]),
+                    Ref(Ident(self.prefix+'_cmdline')), Ident('ptr') ]),
                 Int(0)), fun.block())) as if_:
                 if_(errcheck) # reusing ast
                 if_(Statement(Call(self.prefix+'_free', [ Ident('ptr') ])))

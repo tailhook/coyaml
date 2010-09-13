@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os.path
 import Options, Scripting
 
 APPNAME='coyaml'
-VERSION='0.1'
+VERSION='0.1.1'
 
 top = '.'
 out = 'build'
@@ -22,38 +21,16 @@ def set_options(opt):
 
 
 def configure(conf):
+    import coyaml.waf
     conf.check_tool('compiler_cc')
-
-def singleconfig(bld, src, trg):
-    bld(
-        target=trg+'cfg.h',
-        rule=makeheader,
-        source=src,
-        )
-    bld(
-        target=trg+'cfg.c',
-        rule=makecode,
-        source=src,
-        )
-    bld.add_group()
-    bld(
-        features     = ['cc', 'cprogram'],
-        source       = [
-            'test/'+trg+'.c',
-            trg+'cfg.c',
-            ],
-        target       = trg,
-        includes     = ['include', 'src', bld.bdir + '/default'],
-        ccflags      = ['-std=c99'],
-        libpath      = [bld.bdir+'/default'],
-        lib          = ['coyaml', 'yaml'],
-        )
-
+#    conf.check_tool('coyaml')
+    conf.env.BUILD_TESTS = Options.options.build_tests
+    conf.env.BUILD_SHARED = Options.options.build_shared
 
 def build(bld):
     bld(
         features     = ['cc', ('cshlib'
-            if Options.options.build_shared else 'cstaticlib')],
+            if bld.env.BUILD_SHARED else 'cstaticlib')],
         source       = [
             'src/parser.c',
             'src/commandline.c',
@@ -64,7 +41,7 @@ def build(bld):
         ccflags      = ['-std=c99'],
         lib          = ['yaml'],
         )
-    if Options.options.build_shared:
+    if bld.env.BUILD_SHARED:
         bld.install_files('${PREFIX}/lib', [bld.bdir+'/default/libcoyaml.so'])
     else:
         bld.install_files('${PREFIX}/lib', [bld.bdir+'/default/libcoyaml.a'])
@@ -74,35 +51,47 @@ def build(bld):
         ])
     bld.install_files(Options.options.python_lib+'/coyaml', 'coyaml/*.py')
     bld.install_files('${PREFIX}/bin', 'scripts/coyaml', chmod=0o755)
-    if Options.options.build_tests:
-        singleconfig(bld, 'examples/tinyconfig.yaml', 'tinytest')
-        singleconfig(bld, 'examples/comprehensive.yaml', 'comprehensive')
-        singleconfig(bld, 'examples/recconfig.yaml', 'recursive')
+    if bld.env.BUILD_TESTS:
+        import coyaml.waf
+        bld(
+            features     = ['cc', 'cprogram', 'coyaml'],
+            source       = [
+                'test/tinytest.c',
+                ],
+            target       = 'tinytest',
+            includes     = ['include', 'test'],
+            ccflags      = ['-std=c99'],
+            libpath      = [bld.bdir+'/default'],
+            lib          = ['coyaml', 'yaml'],
+            config       = 'test/tinyconfig.yaml',
+            )
+        bld(
+            features     = ['cc', 'cprogram', 'coyaml'],
+            source       = [
+                'test/compr.c',
+                ],
+            target       = 'compr',
+            includes     = ['include', 'test'],
+            ccflags      = ['-std=c99'],
+            libpath      = [bld.bdir+'/default'],
+            lib          = ['coyaml', 'yaml'],
+            config       = 'test/comprehensive.yaml',
+            config_name  = 'cfg',
+            )
+        bld(
+            features     = ['cc', 'cprogram', 'coyaml'],
+            source       = [
+                'test/recursive.c',
+                ],
+            target       = 'recursive',
+            includes     = ['include', 'test'],
+            ccflags      = ['-std=c99'],
+            libpath      = [bld.bdir+'/default'],
+            lib          = ['coyaml', 'yaml'],
+            config       = 'test/recconfig.yaml',
+            config_name  = 'cfg',
+            )
 
 def test(ctx):
     Scripting.commands += ['build']
     Options.options.build_tests = True
-
-def makeheader(task):
-    import coyaml.cgen, coyaml.hgen, coyaml.core, coyaml.load
-    src = task.inputs[0].srcpath(task.env)
-    tgt = task.outputs[0].bldpath(task.env)
-    cfg = coyaml.core.Config('cfg', os.path.splitext(os.path.basename(tgt))[0])
-    with open(src, 'rb') as f:
-        coyaml.load.load(f, cfg)
-    with open(tgt, 'wt', encoding='utf-8') as f:
-        with coyaml.textast.Ast() as ast:
-            coyaml.hgen.GenHCode(cfg).make(ast)
-        f.write(str(ast))
-
-def makecode(task):
-    import coyaml.cgen, coyaml.hgen, coyaml.core, coyaml.load
-    src = task.inputs[0].srcpath(task.env)
-    tgt = task.outputs[0].bldpath(task.env)
-    cfg = coyaml.core.Config('cfg', os.path.splitext(os.path.basename(tgt))[0])
-    with open(src, 'rb') as f:
-        coyaml.load.load(f, cfg)
-    with open(tgt, 'wt', encoding='utf-8') as f:
-        with coyaml.textast.Ast() as ast:
-            coyaml.cgen.GenCCode(cfg).make(ast)
-        f.write(str(ast))

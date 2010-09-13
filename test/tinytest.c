@@ -1,10 +1,10 @@
 #include <stdio.h>
 
-#include "tinytestcfg.h"
+#include "tinyconfig.h"
 
-cfg_main_t config;
+config_main_t config;
 
 int main(int argc, char **argv) {
-    cfg_load(&config, argc, argv);
-    cfg_free(&config);
+    config_load(&config, argc, argv);
+    config_free(&config);
 }
