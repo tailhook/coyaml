@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from .util import varname
 from .load import Convert
 
@@ -59,7 +61,7 @@ class Config(object):
         self.name = name
         self.targetname = targetname
         self.meta = ConfigMeta()
-        self.types = {}
+        self.types = OrderedDict()
         self.commandline = []
 
     def fill_meta(self, meta):
