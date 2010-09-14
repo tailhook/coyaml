@@ -6,7 +6,7 @@ from collections import OrderedDict
 __all__ = [
     'VSpace',
     'CommentBlock',
-    'Include', 'StdInclude', 'Define',
+    'Include', 'StdInclude', 'Define', 'Ifdef', 'Ifndef', 'Endif',
     'Ident',
     'TypeDef', 'Typename', 'Struct', 'AnonStruct', 'Void',
     'Enum', 'EnumItem', 'EnumVal',
@@ -222,6 +222,27 @@ class Define(Node):
         ])
     top = True
     line_format = '#define {name}'
+
+class Ifdef(Node):
+    __slots__ = OrderedDict([
+        ('name', Ident),
+        ])
+    top = True
+    line_format = '#ifdef {name}'
+
+class Ifndef(Node):
+    __slots__ = OrderedDict([
+        ('name', Ident),
+        ])
+    top = True
+    line_format = '#ifndef {name}'
+
+class Endif(Node):
+    __slots__ = OrderedDict([
+        ('name', Ident),
+        ])
+    top = True
+    line_format = '#endif //{name}'
 
 class Var(Node):
     __slots__ = OrderedDict([
