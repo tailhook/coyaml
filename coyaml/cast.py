@@ -170,7 +170,7 @@ class Typename(Node):
     re_typename = re.compile('''^
         (?:(?:const|static)\s+)?
         (?:(?:unsigned|signed)\s+)?
-        (?:char|short|int|long|bool|float|double|\w+_t|\w+_fun|FILE)
+        (?:char|short|int|long|bool|float|double|void|\w+_t|\w+_fun|FILE)
         \s*(?:\*\s*)* |
         struct\s+\w+
         \s*(?:\*\s*)*

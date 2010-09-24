@@ -117,6 +117,10 @@ class Convert(yaml.YAMLObject):
     def from_yaml(cls, Loader, node):
         return cls(Loader.construct_scalar(node))
 
+class VoidPtr(YamlyType):
+    yaml_tag = '!_VoidPtr'
+    yaml_loader = ConfigLoader
+
 from .core import Config, Usertype # sorry, circular dependency
 from .util import varname
 

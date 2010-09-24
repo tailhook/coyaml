@@ -96,6 +96,8 @@ SimpleHTTPServer:
     =: zmqaddr
     description: >
       Socket address to get status from by zmq protocol
+  _hidden-field: !Int 5
+  _hidden-ptr: !_VoidPtr ~
   responses:
     default: !Struct
       =: response

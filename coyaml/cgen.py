@@ -24,6 +24,7 @@ placeholders = {
     load.String: '%s',
     load.File: '%s',
     load.Dir: '%s',
+    load.VoidPtr: '0x%x',
     }
 
 cfgtoast = {
@@ -32,6 +33,7 @@ cfgtoast = {
     load.String: String,
     load.File: String,
     load.Dir: String,
+    load.VoidPtr: lambda val: NULL,
     }
 
 def mem2dotname(mem):
@@ -329,6 +331,7 @@ class GenCCode(object):
                     self._visit_hier(v, k, struct_name, pws+'  ',
                         Dot(mem, varname(k)),
                         past=past, pfun=pfun, dast=dast, root=root)
+                    if k.startswith('_'): continue
                     tran(StrValue(
                         symbol=String(k),
                         callback=Coerce('coyaml_state_fun', Ref(v.prop_func)),
@@ -347,13 +350,15 @@ class GenCCode(object):
         elif item.__class__ in placeholders:
             item.struct_name = struct_name
             item.member_path = mem
-            past(Statement(Call('fprintf', [ Ident('out'),
-                String('%s{0}{1}: {2}\n'.format(pws, name,
-                placeholders[item.__class__])), Ident('prefix'), mem ])))
+            if not name.startswith('_'):
+                past(Statement(Call('fprintf', [ Ident('out'),
+                    String('%s{0}{1}: {2}\n'.format(pws, name,
+                    placeholders[item.__class__])), Ident('prefix'), mem ])))
             if hasattr(item, 'default_'):
                 dast(Statement(Assign(mem,
                     cfgtoast[item.__class__](item.default_))))
-            self.mkstate(item, struct_name, mem)
+            if not name.startswith('_'):
+                self.mkstate(item, struct_name, mem)
         elif isinstance(item, load.Struct):
             item.struct_name = struct_name
             item.member_path = mem

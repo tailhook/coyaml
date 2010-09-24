@@ -20,10 +20,13 @@ types = {
     load.UInt: 'size_t',
     load.Float: 'double',
     load.Bool: 'int',
+    load.VoidPtr: 'void *',
     }
-_typenames = {
+_typenames = types.copy()
+_typenames.update({
     load.String: 'string',
-    }
+    load.VoidPtr: 'void',
+    })
 _typenames.update(types)
 string_types = (load.File, load.String, load.Dir)
 
