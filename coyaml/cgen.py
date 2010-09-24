@@ -386,9 +386,12 @@ class GenCCode(object):
                             self._visit_hier(v, k, typname,
                                 '', Member('cfg', varname(k)),
                                 past=cur, pfun=cur, dast=cdef, root=root)
+                            if k.startswith('_'):
+                                continue
                             tran(StrValue(
                                 symbol=String(k),
-                                callback=Coerce('coyaml_state_fun', Ref(v.prop_func)),
+                                callback=Coerce('coyaml_state_fun',
+                                    Ref(v.prop_func)),
                                 prop=v.prop_ref,
                                 ))
                         tran(StrValue(symbol=Ident('NULL'),

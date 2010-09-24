@@ -15,6 +15,7 @@ __types__:
       =: 80
     unix-socket: !String ""
     __value__: !Convert convert_connectaddr
+    _fd-no: !Int -1
 
   listenaddr:
     <<: *connectaddr
