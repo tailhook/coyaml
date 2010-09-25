@@ -86,6 +86,10 @@ class GenHCode(object):
                     sub(Var(Typename('coyaml_mappingel_head_t'), 'head'))
                     self._simple_type(sub, v.key_element, 'key')
                     self._simple_type(sub, v.value_element, 'value')
+                root(Macro(tname.replace('_m_', '_').upper()+'_LOOP',
+                    [Ident('name'), Ident('source')],
+                    'for({0}_t *name = source; name; name = name->head.next)'
+                    .format(tname)))
             elif isinstance(v, load.Array):
                 tname = '{0}_a_{1}'.format(self.prefix,
                     typename(v.element))
@@ -99,6 +103,10 @@ class GenHCode(object):
                     tname+'_t')) as sub:
                     sub(Var(Typename('coyaml_arrayel_head_t'), 'head'))
                     self._simple_type(sub, v.element, 'value')
+                root(Macro(tname.replace('_a_', '_').upper()+'_LOOP',
+                    [Ident('name'), Ident('source')],
+                    'for({0}_t *name = source; name; name = name->head.next)'
+                    .format(tname)))
             else:
                 self._simple_type(ast, v, k)
 

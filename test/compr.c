@@ -79,5 +79,11 @@ int convert_listenaddr(coyaml_parseinfo_t *info, char *value,
 
 int main(int argc, char **argv) {
     cfg_load(&config, argc, argv);
+    CFG_STRING_LOOP(item, config.SimpleHTTPServer.directory_indexes) {
+        printf("INDEX: \"%s\"\n", item->value);
+    }
+    CFG_STRING_STRING_LOOP(item, config.SimpleHTTPServer.extra_headers) {
+        printf("HEADER: \"%s\": \"%s\"\n", item->key, item->value);
+    }
     cfg_free(&config);
 }
