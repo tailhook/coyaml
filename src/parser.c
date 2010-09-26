@@ -438,8 +438,12 @@ int coyaml_tagged_scalar(coyaml_parseinfo_t *info, char *value,
         *(char **)(((char *)target)+str->baseoffset) = obstack_copy0(
             &info->head->pieces,
             info->event.data.scalar.value, info->event.data.scalar.length);
+        *(int *)(((char *)target)+str->baseoffset+sizeof(char*)) =
+            info->event.data.scalar.length;
     } else {
         *(char **)(((char *)target)+str->baseoffset) = value; //Dirty hack
+        *(int *)(((char *)target)+str->baseoffset+sizeof(char*)) =
+            strlen(value);
     }
     COYAML_DEBUG("Leaving Tagged Scalar");
     return 0;

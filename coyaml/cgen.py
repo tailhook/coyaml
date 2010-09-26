@@ -270,6 +270,8 @@ class GenCCode(object):
         usage = "Usage: {m.program_name} [options]\n".format(m=self.cfg.meta)
         ast(VarAssign('coyaml_cmdline_t', self.prefix+'_cmdline',
             StrValue(
+                debug=Ident('FALSE'),
+                filename=String(self.cfg.meta.default_config),
                 optstr=String(optstr),
                 optidx=self.prefix+'_optidx',
                 usage=String(usage),
@@ -355,8 +357,11 @@ class GenCCode(object):
                     String('%s{0}{1}: {2}\n'.format(pws, name,
                     placeholders[item.__class__])), Ident('prefix'), mem ])))
             if hasattr(item, 'default_'):
-                dast(Statement(Assign(mem,
-                    cfgtoast[item.__class__](item.default_))))
+                asttyp = cfgtoast[item.__class__]
+                dast(Statement(Assign(mem, asttyp(item.default_))))
+                if asttyp is String:
+                    lenmem = mem.__class__(mem.source, mem.name.value + '_len')
+                    dast(Statement(Assign(lenmem, Int(len(item.default_)))))
             if not name.startswith('_'):
                 self.mkstate(item, struct_name, mem)
         elif isinstance(item, load.Struct):
