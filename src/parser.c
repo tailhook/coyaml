@@ -283,6 +283,8 @@ int coyaml_file(coyaml_parseinfo_t *info, coyaml_file_t *def, void *target) {
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
         &info->head->pieces,
         info->event.data.scalar.value, info->event.data.scalar.length);
+    *(int *)(((char *)target)+def->baseoffset+sizeof(char*)) =
+        info->event.data.scalar.length;
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving File");
     return 0;
@@ -295,6 +297,8 @@ int coyaml_dir(coyaml_parseinfo_t *info, coyaml_dir_t *def, void *target) {
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
         &info->head->pieces,
         info->event.data.scalar.value, info->event.data.scalar.length);
+    *(int *)(((char *)target)+def->baseoffset+sizeof(char*)) =
+        info->event.data.scalar.length;
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving Dir");
     return 0;
@@ -306,6 +310,8 @@ int coyaml_string(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) 
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
         &info->head->pieces,
         info->event.data.scalar.value, info->event.data.scalar.length);
+    *(int *)(((char *)target)+def->baseoffset+sizeof(char*)) =
+        info->event.data.scalar.length;
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving String");
     return 0;
