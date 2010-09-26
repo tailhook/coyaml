@@ -346,10 +346,10 @@ int coyaml_mapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *target
             def->element_size);
         bzero(newel, def->element_size);
         if(def->key_defaults) {
-            def->key_defaults(newel+*(int *)def->key_prop);
+            def->key_defaults((char *)newel+*(int *)def->key_prop);
         }
         if(def->value_defaults) {
-            def->value_defaults(newel+*(int *)def->value_prop);
+            def->value_defaults((char *)newel+*(int *)def->value_prop);
         }
         CHECK(def->key_callback(info, def->key_prop, newel));
         CHECK(def->value_callback(info, def->value_prop, newel));

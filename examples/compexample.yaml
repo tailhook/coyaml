@@ -25,6 +25,9 @@ SimpleHTTPServer:
     default:
         code: 200
         status: OK
+        headers:
+            Content-Type: text/html
+            X-Fortune: no
         body: |
             <!DOCTYPE html>
             <html>
