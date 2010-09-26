@@ -347,6 +347,7 @@ int coyaml_mapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *target
     SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
     CHECK(coyaml_next(info));
     coyaml_mappingel_head_t *lastel = NULL;
+    size_t nelements = 0;
     while(info->event.type != YAML_MAPPING_END_EVENT) {
         coyaml_mappingel_head_t *newel = obstack_alloc(&info->head->pieces,
             def->element_size);
@@ -359,6 +360,7 @@ int coyaml_mapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *target
         }
         CHECK(def->key_callback(info, def->key_prop, newel));
         CHECK(def->value_callback(info, def->value_prop, newel));
+        nelements += 1;
         if(!lastel) {
             *(void **)((char *)target+def->baseoffset) = newel;
         } else {
@@ -366,6 +368,7 @@ int coyaml_mapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *target
         }
         lastel = newel;
     }
+    *(size_t*)((char *)target+def->baseoffset+sizeof(void *)) = nelements;
     SYNTAX_ERROR(info->event.type == YAML_MAPPING_END_EVENT);
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving Mapping");
@@ -377,6 +380,7 @@ int coyaml_array(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
     SYNTAX_ERROR(info->event.type == YAML_SEQUENCE_START_EVENT);
     CHECK(coyaml_next(info));
     coyaml_arrayel_head_t *lastel = NULL;
+    size_t nelements = 0;
     while(info->event.type != YAML_SEQUENCE_END_EVENT) {
         coyaml_arrayel_head_t *newel = obstack_alloc(&info->head->pieces,
             def->element_size);
@@ -385,6 +389,7 @@ int coyaml_array(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
             def->element_defaults((char *)newel+*(int *)def->element_prop);
         }
         CHECK(def->element_callback(info, def->element_prop, newel));
+        nelements += 1;
         if(!lastel) {
             *(void **)((char *)target+def->baseoffset) = newel;
         } else {
@@ -392,6 +397,7 @@ int coyaml_array(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
         }
         lastel = newel;
     }
+    *(size_t*)((char *)target+def->baseoffset+sizeof(void *)) = nelements;
     SYNTAX_ERROR(info->event.type == YAML_SEQUENCE_END_EVENT);
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving Array");
