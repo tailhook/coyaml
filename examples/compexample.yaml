@@ -4,7 +4,9 @@ SimpleHTTPServer:
   log-file: "/var/log/test.log"
   listen:
     host: localhost
+    fd: 0
   root: "/var/www"
+  max-request-size: 1Mi
   extra-headers:
     X-Test: OK
     X-Fortune: 18+

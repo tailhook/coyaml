@@ -52,6 +52,25 @@ static char *yaml_event_names[] = {
     "YAML_MAPPING_END_EVENT"
     };
 
+static struct unit_s {
+    char *unit;
+    size_t value;
+} units[] = {
+    {"k", 1000L},
+    {"ki", 1L << 10},
+    {"M", 1000000L},
+    {"Mi", 1L << 20},
+    {"G", 1000000000L},
+    {"Gi", 1L << 30},
+    {"T", 1000000000000L},
+    {"Ti", 1L << 40},
+    {"P", 1000000000000000L},
+    {"Pi", 1L << 50},
+    {"E", 1000000000000000000L},
+    {"Ei", 1L << 60},
+    {NULL, 0},
+    };
+
 static int coyaml_next(coyaml_parseinfo_t *info) {
     // Temporarily without aliases
 /*    if(info->anchor_pos >= 0) {*/
@@ -264,13 +283,22 @@ int coyaml_int(coyaml_parseinfo_t *info, coyaml_int_t *def, void *target) {
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     unsigned char *end;
     int val = strtol(info->event.data.scalar.value, (char **)&end, 0);
+    if(*end) {
+        for(struct unit_s *unit = units; unit->unit; ++unit) {
+            if(!strcmp(end, unit->unit)) {
+                val *= unit->value;
+                end += strlen(unit->unit);
+                break;
+            }
+        }
+    }
     SYNTAX_ERROR(end == info->event.data.scalar.value
         + info->event.data.scalar.length);
     VALUE_ERROR(!(def->bitmask&2) || val <= def->max,
         "Value must be less than or equal to %d", def->max);
     VALUE_ERROR(!(def->bitmask&1) || val >= def->min,
         "Value must be greater than or equal to %d", def->min);
-    *(int *)(((char *)target)+def->baseoffset) = val;
+    *(long *)(((char *)target)+def->baseoffset) = val;
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving Int");
     return 0;
