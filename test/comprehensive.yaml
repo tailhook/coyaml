@@ -67,7 +67,7 @@ SimpleHTTPServer:
     command-line: [ -l, --log-file ]
   listen: !Struct
     =: listenaddr
-    command-line: [ -a, --listen-addr]
+    command-line: [ -a, --listen-address]
     description: >
       Listen for specified address
     command-line-descr: >

@@ -233,9 +233,14 @@ class GenCCode(object):
                     cmd(StrValue(name=String(opt.name), val=Int(opt.index),
                         flag='NULL',
                         has_arg='TRUE' if has_arg else 'FALSE'))
+                if isinstance(opt, core.IncrOption):
+                    opt_fun = opt.target.prop_func + '_incr_o'
+                elif isinstance(opt, core.DecrOption):
+                    opt_fun = opt.target.prop_func + '_decr_o'
+                elif isinstance(opt, core.Option):
+                    opt_fun = opt.target.prop_func+'_o'
                 copt(StrValue(
-                    callback=Coerce('coyaml_option_fun',
-                        Ref(opt.target.prop_func+'_o')),
+                    callback=Coerce('coyaml_option_fun', Ref(opt_fun)),
                     prop=opt.target.prop_ref,
                     ))
             cmd(StrValue(name=NULL, val=Int(0), flag='NULL', has_arg='FALSE')),
@@ -254,14 +259,15 @@ class GenCCode(object):
                         description = 'Decrement aformentioned value'
                 else:
                     description = target.description
-                if len(opt) < 17:
+                if len(opt) <= 17:
                     opt = '  {:17s} '.format(opt)
                     stroptions.extend(textwrap.wrap(description,
                         width=80, initial_indent=opt, subsequent_indent=' '*20))
                 else:
                     stroptions.append('  '+opt)
                     stroptions.extend(textwrap.wrap(description,
-                        width=80, initial_indent=opt, subsequent_indent=' '*20))
+                        width=80, initial_indent=' '*20,
+                        subsequent_indent=' '*20))
         descr = cmdline_template.format(m=self.cfg.meta,
             description='\n'.join(textwrap.wrap(self.cfg.meta.description,
                  width=80, initial_indent='    ', subsequent_indent='    ')),
