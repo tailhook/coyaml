@@ -4,6 +4,11 @@
 #include <setjmp.h>
 #include <obstack.h>
 #include <strings.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/fcntl.h>
+#include <unistd.h>
+#include <alloca.h>
 
 #include <coyaml_src.h>
 
@@ -335,11 +340,43 @@ int coyaml_dir(coyaml_parseinfo_t *info, coyaml_dir_t *def, void *target) {
 int coyaml_string(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) {
     COYAML_DEBUG("Entering String");
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
-    *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
-        &info->head->pieces,
-        info->event.data.scalar.value, info->event.data.scalar.length);
-    *(int *)(((char *)target)+def->baseoffset+sizeof(char*)) =
-        info->event.data.scalar.length;
+    char *tag = info ? info->event.data.scalar.tag : NULL;
+    if(tag) {
+        if(!strcmp(tag, "!FromFile")) {
+            char *fn = info->event.data.scalar.value;
+            if(*fn != '/') {
+                char *suffix = strrchr(info->filename, '/');
+                if(suffix) {
+                    fn = alloca(suffix - info->filename + 1
+                        + info->event.data.scalar.length + 1);
+                    strncpy(fn, info->filename, suffix - info->filename + 1);
+                    strcpy(fn + (suffix - info->filename + 1),
+                        info->event.data.scalar.value);
+                }
+            }
+            COYAML_DEBUG("Opening ``%s'' at ``%s''",
+                fn, info->filename);
+            int file = open(fn, O_RDONLY);
+            VALUE_ERROR(file >= 0, "Can't open file ``%s''", fn);
+            struct stat finfo;
+            VALUE_ERROR(!fstat(file, &finfo), "Can't stat ``%s''", fn);
+            void *body = *(char **)(((char *)target)+def->baseoffset) \
+                = obstack_alloc(&info->head->pieces, finfo.st_size);
+            *(int *)(((char *)target)+def->baseoffset+sizeof(char*)) \
+                = finfo.st_size;
+            VALUE_ERROR(read(file, body, finfo.st_size) == finfo.st_size,
+                "Couldn't read file ``%s''", fn);
+            close(file);
+        } else {
+            VALUE_ERROR(TRUE, "Unknown tag ``%s''", tag);
+        }
+    } else {
+        *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
+            &info->head->pieces,
+            info->event.data.scalar.value, info->event.data.scalar.length);
+        *(int *)(((char *)target)+def->baseoffset+sizeof(char*)) =
+            info->event.data.scalar.length;
+    }
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving String");
     return 0;
