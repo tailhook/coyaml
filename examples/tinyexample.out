@@ -1,0 +1,6 @@
+SimpleHTTPServer:
+  port: 8000
+  log-level: 7
+  log-file: hello
+  root: /tmp/web
+  server-string: coyaml-sampleserver/$coyaml_version

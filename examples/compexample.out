@@ -1,0 +1,85 @@
+SimpleHTTPServer:
+  log-level: 3
+  log-file: /var/log/test.log
+  listen:
+    host: localhost
+    fd: 0
+    port: 80
+    unix-socket: 
+  max-request-size: 1048576
+  directory-indexes:
+    - index
+    - index.html
+    - index.php
+  root: /var/www
+  server-string: coyaml-sampleserver/$coyaml_version
+  extra-headers:
+    X-Test: OK
+    X-Fortune: 18+
+  http-forward:
+    -
+      host: 192.168.0.1
+      port: 80
+      unix-socket: 
+    -
+      host: 192.168.0.2
+      port: 80
+      unix-socket: 
+    -
+      host: 192.168.0.3
+      port: 8080
+      unix-socket: 
+    -
+      host: 192.168.0.5
+      port: 9980
+      unix-socket: 
+    -
+      host: 192.168.0.9
+      port: 80
+      unix-socket: 
+    -
+      host: 
+      port: 80
+      unix-socket: /var/run/internal_http
+  status-socket:
+    value: tcp://127.0.0.1:1234
+  responses:
+    default:
+      status: OK
+      headers:
+        Content-Type: text/html
+        X-Fortune: no
+      code: 200
+      body: <!DOCTYPE html>
+<html>
+    <head><title>Hello</title></head>
+    <body>
+        <h1>Hello</h2>
+        This is an empty site, actually!
+    </body>
+</html>
+
+    not-found:
+      status: OK
+      headers:
+      code: 200
+      body: <!DOCTYPE html>
+<html>
+  <title>Test page<title>
+  <body>
+      <h1>Test page</h1>
+  </body>
+</html>
+
+    internal-error:
+      status: OK
+      headers:
+      code: 200
+      body: <!DOCTYPE html>
+<html>
+  <title>Test page<title>
+  <body>
+      <h1>Test page</h1>
+  </body>
+</html>
+

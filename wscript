@@ -15,6 +15,8 @@ def set_options(opt):
         help="Build shared library instead of static")
     opt.add_option('--build-tests', action="store_true", dest="build_tests",
         help="Build test cases")
+    opt.add_option('--run-tests', action="store_true", dest="run_tests",
+        help="Run test cases")
     opt.add_option('--python-lib', type="string", dest="python_lib",
         help="Path to python site-packages directory",
         default=distutils.sysconfig.get_python_lib())
@@ -23,7 +25,6 @@ def set_options(opt):
 def configure(conf):
     import coyaml.waf
     conf.check_tool('compiler_cc')
-#    conf.check_tool('coyaml')
     conf.env.BUILD_TESTS = Options.options.build_tests
     conf.env.BUILD_SHARED = Options.options.build_shared
 
@@ -91,7 +92,16 @@ def build(bld):
             config       = 'test/recconfig.yaml',
             config_name  = 'cfg',
             )
+        if Options.options.run_tests:
+            rule =  './default/{0} -c ../examples/{1}.yaml -C -P > /tmp/{0}; diff -u /tmp/{0} ../examples/{1}.out'
+            bld(rule=rule.format('tinytest', 'tinyexample'),
+                always=True)
+            bld(rule=rule.format('compr', 'compexample'),
+                always=True)
+            bld(rule=rule.format('recursive', 'recexample'),
+                always=True)
 
 def test(ctx):
     Scripting.commands += ['build']
     Options.options.build_tests = True
+    Options.options.run_tests = True
