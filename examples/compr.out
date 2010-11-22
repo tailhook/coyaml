@@ -1,0 +1,5 @@
+INDEX: "index"
+INDEX: "index.html"
+INDEX: "index.php"
+HEADER: "X-Test": "OK"
+HEADER: "X-Fortune": "18+"

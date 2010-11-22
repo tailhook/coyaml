@@ -98,6 +98,8 @@ def build(bld):
                 always=True)
             bld(rule=rule.format('compr', 'compexample'),
                 always=True)
+            bld(rule='./default/compr -c ../examples/compexample.yaml > /tmp/compr; diff -u /tmp/compr ../examples/compr.out',
+                always=True)
             bld(rule=rule.format('recursive', 'recexample'),
                 always=True)
 

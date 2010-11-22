@@ -29,6 +29,16 @@ __types__:
       zmq.Bind: 1
       zmq.Connect: 2
     __value__: !String ""
+  
+  zmqaddr_list:
+    __tags__:
+      __property__: kind
+      __default__: zmq.Push
+      zmq.Push: 1
+      zmq.XReq: 2
+      zmq.Pub: 3
+    __value__: !Array
+        element: !Struct zmqaddr
 
   response:
     code: !Int
@@ -101,6 +111,8 @@ SimpleHTTPServer:
     =: zmqaddr
     description: >
       Socket address to get status from by zmq protocol
+  zmq-forward: !Struct
+    =: zmqaddr_list
   _hidden-field: !Int 5
   _hidden-ptr: !_VoidPtr ~
   responses:

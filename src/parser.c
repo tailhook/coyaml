@@ -389,6 +389,16 @@ int coyaml_usertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *targ
         CHECK(def->scalar_fun(info,
             info->event.data.scalar.value, def, target));
         CHECK(coyaml_next(info));
+    } else if(info->event.type == YAML_SEQUENCE_START_EVENT) {
+        coyaml_parse_tag(info, def, target);
+        for(coyaml_transition_t *tr = def->group->transitions; tr->symbol; ++tr) {
+            COYAML_DEBUG("Symbol ``%s''", tr->symbol);
+            if(!strcmp(tr->symbol, "value")) {
+                COYAML_ASSERT((void *)tr->callback == (void *)coyaml_array);
+                CHECK(coyaml_array(info, tr->prop, target));
+                break;
+            }
+        }
     } else {
         SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
         CHECK(coyaml_group(info, def->group, target));
@@ -400,6 +410,7 @@ int coyaml_usertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *targ
 int coyaml_custom(coyaml_parseinfo_t *info, coyaml_custom_t *def, void *target) {
     COYAML_DEBUG("Entering Custom");
     SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT
+        || info->event.type == YAML_SEQUENCE_START_EVENT
         || info->event.type == YAML_SCALAR_EVENT);
     CHECK(coyaml_usertype(info, def->usertype,
         ((char *)target)+def->baseoffset));
