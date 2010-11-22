@@ -8,8 +8,9 @@ SimpleHTTPServer:
   root: "/var/www"
   max-request-size: 1Mi
   extra-headers:
-    X-Test: OK
+    X-Test: &ok OK
     X-Fortune: 18+
+    X-Test2: *ok
   http-forward:
     - host: 192.168.0.1
     - host: 192.168.0.2
@@ -33,3 +34,10 @@ SimpleHTTPServer:
             Content-Type: text/html
             X-Fortune: no
         body: !FromFile test.html
+    not-found: &error
+        code: 500
+        status: Error
+        headers:
+            Content-Type: text/html
+        body: Error 
+    internal-error: *error

@@ -20,8 +20,7 @@
 typedef struct coyaml_anchor_s {
     struct coyaml_anchor_s *next;
     char *name; // It's allocated in obstack first, we don't need to free it
-    int nevents;
-    yaml_event_t events;
+    yaml_event_t events[];
 } coyaml_anchor_t;
 
 typedef struct coyaml_parseinfo_s {
@@ -34,13 +33,13 @@ typedef struct coyaml_parseinfo_s {
     struct coyaml_head_s *head;
     // End of memory allocation
     // Anchors structures
-    int anchor_level;
-    int anchor_pos;
-    int anchor_count;
-    int anchor_event_count;
     struct obstack anchors;
-    struct coyaml_anchor_s *first;
-    struct coyaml_anchor_s *last;
+    int anchor_level;
+    struct coyaml_anchor_s *anchor_first;
+    struct coyaml_anchor_s *anchor_last;
+    // unpacking
+    coyaml_anchor_t *anchor_unpacking;
+    int anchor_pos;
     // End anchors
 } coyaml_parseinfo_t;
 

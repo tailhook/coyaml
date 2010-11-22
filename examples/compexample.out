@@ -16,6 +16,7 @@ SimpleHTTPServer:
   extra-headers:
     X-Test: OK
     X-Fortune: 18+
+    X-Test2: OK
   http-forward:
     -
       host: 192.168.0.1
@@ -64,26 +65,14 @@ SimpleHTTPServer:
 </html>
 
     not-found:
-      status: OK
+      status: Error
       headers:
-      code: 200
-      body: <!DOCTYPE html>
-<html>
-  <title>Test page<title>
-  <body>
-      <h1>Test page</h1>
-  </body>
-</html>
-
+        Content-Type: text/html
+      code: 500
+      body: Error
     internal-error:
-      status: OK
+      status: Error
       headers:
-      code: 200
-      body: <!DOCTYPE html>
-<html>
-  <title>Test page<title>
-  <body>
-      <h1>Test page</h1>
-  </body>
-</html>
-
+        Content-Type: text/html
+      code: 500
+      body: Error

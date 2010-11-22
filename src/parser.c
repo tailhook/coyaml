@@ -76,100 +76,113 @@ static struct unit_s {
     {NULL, 0},
     };
 
+static char zero[sizeof(yaml_event_t)] = {0}; // compiler should make this zero
+
 static int coyaml_next(coyaml_parseinfo_t *info) {
     // Temporarily without aliases
-/*    if(info->anchor_pos >= 0) {*/
-/*        memcpy(&info->event, &info->anchor_events[info->anchor_pos++],*/
-/*            sizeof(info->event));*/
-/*        switch(info->event.type) {*/
-/*            case YAML_ALIAS_EVENT:*/
-/*                SYNTAX_ERROR("Nested aliases not supported");*/
-/*                break;*/
-/*            case YAML_MAPPING_START_EVENT:*/
-/*            case YAML_SEQUENCE_START_EVENT:*/
-/*                if(info->anchor_level >= 0) {*/
-/*                    ++ info->anchor_level;*/
-/*                }*/
-/*            case YAML_SCALAR_EVENT:*/
-/*                break;*/
-/*            case YAML_MAPPING_END_EVENT:*/
-/*            case YAML_SEQUENCE_END_EVENT:*/
-/*                if(info->anchor_level >= 0) {*/
-/*                    -- info->anchor_level;*/
-/*                }*/
-/*                break;*/
-/*            default:*/
-/*                COYAML_ASSERT(info->event.type);*/
-/*                break;*/
-/*        }*/
-/*        if(info->anchor_level == 0) {*/
-/*            info->anchor_pos = -1;*/
-/*        }*/
-/*        return 0;*/
-/*    }*/
-/*    if(info->event.type && info->anchor_level < 0) {*/
+    if(info->anchor_pos >= 0) {
+        memcpy(&info->event, &info->anchor_unpacking->events[info->anchor_pos],
+            sizeof(info->event));
+        switch(info->event.type) {
+            case YAML_ALIAS_EVENT:
+                SYNTAX_ERROR2("Nested aliases not supported");
+                break;
+            case YAML_MAPPING_START_EVENT:
+            case YAML_SEQUENCE_START_EVENT:
+                if(info->anchor_level >= 0) {
+                    ++ info->anchor_level;
+                }
+            case YAML_SCALAR_EVENT:
+                break;
+            case YAML_MAPPING_END_EVENT:
+            case YAML_SEQUENCE_END_EVENT:
+                if(info->anchor_level >= 0) {
+                    -- info->anchor_level;
+                }
+                break;
+            default:
+                COYAML_ASSERT(info->event.type);
+                break;
+        }
+        if(info->anchor_level == 0) {
+            info->anchor_pos = -1;
+            info->anchor_unpacking = NULL;
+        } else {
+            info->anchor_pos += 1;
+        }
+        return 0;
+    }
+    if(info->event.type && info->anchor_level < 0) {
         yaml_event_delete(&info->event);
-/*    }*/
-/*    if(info->anchor_level == 0) {*/
-/*        info->anchor_level = -1;*/
-/*    }*/
+    }
+    if(info->anchor_level == 0) {
+        info->anchor_level = -1;
+    }
     COYAML_ASSERT(yaml_parser_parse(&info->parser, &info->event));
+    if(info->event.data.scalar.anchor && info->anchor_level >= 0) {
+        SYNTAX_ERROR2("Nested anchors are not supported");
+    }
     switch(info->event.type) {
         case YAML_ALIAS_EVENT:
-            SYNTAX_ERROR2("Aliases not supported yet");
-/*            for(int i = 0; i < info->anchor_count; ++i) {*/
-/*                if(!strcmp(info->event.data.alias.anchor,*/
-/*                    info->anchors[i].name)) {*/
-/*                    info->anchor_pos = info->anchors[i].begin;*/
-/*                    info->anchor_level = 0;*/
-/*                    return coyaml_next(info);*/
-/*                }*/
-/*            }*/
-/*            SYNTAX_ERROR2("Anchor %s not found", info->event.data.alias.anchor);*/
+            for(coyaml_anchor_t *a = info->anchor_first; a; a = a->next) {
+                if(!strcmp(info->event.data.alias.anchor, a->name)) {
+                    info->anchor_pos = 0;
+                    info->anchor_level = 0;
+                    info->anchor_unpacking = a;
+                    yaml_event_delete(&info->event);
+                    return coyaml_next(info);
+                }
+            }
+            SYNTAX_ERROR2("Anchor %s not found", info->event.data.alias.anchor);
             break;
         case YAML_MAPPING_START_EVENT:
         case YAML_SEQUENCE_START_EVENT:
-/*            if(info->anchor_level >= 0) {*/
-/*                ++ info->anchor_level;*/
-/*            }*/
+            if(info->anchor_level >= 0 || info->event.data.scalar.anchor) {
+                ++ info->anchor_level;
+            }
         case YAML_SCALAR_EVENT:
             if(info->event.data.scalar.anchor) {
-                SYNTAX_ERROR2("Anchors not supported yet");
-/*                if(info->anchor_count >= ANCHOR_ITEMS_MAX) {*/
-/*                    SYNTAX_ERROR2("Too many anchors (max %d)", ANCHOR_ITEMS_MAX);*/
-/*                }*/
-/*                strncpy(info->anchors[info->anchor_count].name, info->event.data.scalar.anchor, 64);*/
-/*                info->anchors[info->anchor_count].name[63] = 0;*/
-/*                info->anchors[info->anchor_count].begin = info->anchor_event_count;*/
-/*                ++ info->anchor_count;*/
-/*                if(info->anchor_level < 0) { // Supporting nested aliases*/
-/*                    info->anchor_level = 0;*/
-/*                }*/
+                info->anchor_level += 1;
+                char *name = obstack_copy0(&info->anchors,
+                    info->event.data.scalar.anchor,
+                    strlen(info->event.data.scalar.anchor));
+                COYAML_DEBUG("Found anchor ``%s''", name);
+                obstack_blank(&info->anchors, sizeof(coyaml_anchor_t));
+                coyaml_anchor_t *cur = obstack_base(&info->anchors);
+                cur->name = name;
             }
             break;
         case YAML_MAPPING_END_EVENT:
         case YAML_SEQUENCE_END_EVENT:
-/*            if(info->anchor_level >= 0) {*/
-/*                -- info->anchor_level;*/
-/*            }*/
+            if(info->anchor_level >= 0) {
+                -- info->anchor_level;
+            }
             break;
         case YAML_STREAM_START_EVENT:
         case YAML_STREAM_END_EVENT:
         case YAML_DOCUMENT_START_EVENT:
         case YAML_DOCUMENT_END_EVENT:
-/*            COYAML_ASSERT(info->anchor_level < 0);*/
+            COYAML_ASSERT(info->anchor_level < 0);
             break;
         default:
             SYNTAX_ERROR(0);
             break;
     }
-/*    if(info->anchor_level >= 0) {*/
-/*        memcpy(&info->anchor_events[info->anchor_event_count++],*/
-/*            &info->event, sizeof(info->event));*/
-/*        if(!info->anchor_level) {*/
-/*            info->anchor_level = -1;*/
-/*        }*/
-/*    }*/
+    if(info->anchor_level >= 0) {
+        obstack_grow(&info->anchors, &info->event, sizeof(info->event));
+        if(!info->anchor_level) {
+            obstack_grow(&info->anchors, zero, sizeof(zero));
+            coyaml_anchor_t *cur = obstack_finish(&info->anchors);
+            COYAML_DEBUG("Done anchor ``%s''", cur->name);
+            if(info->anchor_last) {
+                info->anchor_last->next = cur;
+                info->anchor_last = cur;
+            } else {
+                info->anchor_first = info->anchor_last = cur;
+            }
+            cur->next = NULL;
+        }
+    }
     if(info->event.type == YAML_SCALAR_EVENT) {
         COYAML_DEBUG("Event %s[%d] (%s)",
             yaml_event_names[info->event.type], info->event.type,
@@ -227,10 +240,12 @@ int coyaml_readfile(char *filename, coyaml_group_t *root,
     sinfo.debug = debug;
     sinfo.head = target;
     sinfo.target = target;
+    obstack_init(&sinfo.anchors);
     sinfo.anchor_level = -1;
     sinfo.anchor_pos = -1;
-    sinfo.anchor_count = 0;
-    sinfo.anchor_event_count = 0;
+    sinfo.anchor_unpacking = NULL;
+    sinfo.anchor_first = NULL;
+    sinfo.anchor_last = NULL;
     sinfo.event.type = YAML_NO_EVENT;
 
     coyaml_parseinfo_t *info = &sinfo;
@@ -242,6 +257,13 @@ int coyaml_readfile(char *filename, coyaml_group_t *root,
 
     int result = coyaml_root(info, root, target);
 
+
+    for(coyaml_anchor_t *a = sinfo.anchor_first; a; a = a->next) {
+        for(yaml_event_t *ev = a->events; ev->type != YAML_NO_EVENT; ++ev) {
+            yaml_event_delete(ev);
+        }
+    }
+    obstack_free(&sinfo.anchors, NULL);
     yaml_parser_delete(&info->parser);
     fclose(file);
     COYAML_DEBUG("Done %s", result ? "ERROR" : "OK");
