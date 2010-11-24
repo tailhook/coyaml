@@ -41,9 +41,8 @@ class GenHCode(object):
         ast(VSpace())
         ast(Var(Typename('coyaml_cmdline_t'), self.prefix+'_cmdline'))
         ast(Func(Typename('bool'), self.prefix+'_readfile', [
-            Param(Typename('char *'), 'filename'),
+            Param(Typename('coyaml_cmdline_t *'), 'cmdline'),
             Param(Typename(self.prefix+'_main_t *'), 'target'),
-            Param(Typename('bool'), 'debug'),
             ]))
         ast(Func(Typename(self.prefix+'_main_t *'), self.prefix+'_init', [
             Param(Typename(self.prefix+'_main_t *'), 'target'),

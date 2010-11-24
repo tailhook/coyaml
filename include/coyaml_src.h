@@ -10,6 +10,8 @@
 #define COYAML_CLI_HELP (COYAML_CLI_FIRST)
 #define COYAML_CLI_FILENAME (COYAML_CLI_FIRST+1)
 #define COYAML_CLI_DEBUG (COYAML_CLI_FIRST+2)
+#define COYAML_CLI_VARS (COYAML_CLI_FIRST+3)
+#define COYAML_CLI_NOVARS (COYAML_CLI_FIRST+4)
 #define COYAML_CLI_RESERVED 600
 #define COYAML_CLI_PRINT (COYAML_CLI_RESERVED)
 #define COYAML_CLI_CHECK (COYAML_CLI_RESERVED+1)
@@ -24,7 +26,8 @@ typedef struct coyaml_anchor_s {
 } coyaml_anchor_t;
 
 typedef struct coyaml_parseinfo_s {
-    int debug;
+    bool debug;
+    bool parse_vars;
     char *filename;
     void *target;
     yaml_parser_t parser;
@@ -186,8 +189,8 @@ int coyaml_dir_o(char *value, coyaml_dir_t *prop, void *target);
 int coyaml_string_o(char *value, coyaml_string_t *prop, void *target);
 int coyaml_custom_o(char *value, coyaml_custom_t *prop, void *target);
 
-int coyaml_readfile(char *filename, coyaml_group_t *root,
-    void *target, bool debug);
+int coyaml_readfile(coyaml_cmdline_t *cmdline,
+    coyaml_group_t *root, void *target);
 
 int coyaml_tagged_scalar(coyaml_parseinfo_t *info, char *value,
     struct coyaml_usertype_s *prop, void *target);

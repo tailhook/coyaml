@@ -22,8 +22,8 @@ file (they have only scalar variables usually). So...
  * YAML has rich set of data types (arrays, mappings) which we use to make
     config useful (compare it with old `.ini` files)
  * We use YAML-builtin anchors to make reusable parts
- * We will extend (I promise!) YAML with runtime variables,
-    substring substitution and some simple mathematical expressions
+ * We have extended YAML with runtime variables, substring substitution
+    (and WILL implement some simple mathematical expressions)
 
 All this to meet the following goals:
 

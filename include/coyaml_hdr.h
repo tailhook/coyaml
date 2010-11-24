@@ -36,6 +36,7 @@ typedef struct coyaml_mappingel_head_s {
 typedef struct coyaml_cmdline_s {
     char *filename;
     bool debug;
+    bool variables;
     char *usage;
     char *full_description;
     char *optstr;

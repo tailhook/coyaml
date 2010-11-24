@@ -9,6 +9,7 @@
 #include <sys/fcntl.h>
 #include <unistd.h>
 #include <alloca.h>
+#include <ctype.h>
 
 #include <coyaml_src.h>
 
@@ -27,6 +28,13 @@
     info->event.start_mark.column, ##__VA_ARGS__); \
     errno = ECOYAML_SYNTAX_ERROR; \
     return -1; }
+#define SYNTAX_ERROR2_NULL(message, ...) if(TRUE) { \
+    fprintf(stderr, "COAYML: Syntax error in config file ``%s'' " \
+        "at line %d column %d: " message "\n", \
+    info->filename, info->event.start_mark.line+1, \
+    info->event.start_mark.column, ##__VA_ARGS__); \
+    errno = ECOYAML_SYNTAX_ERROR; \
+    return NULL; }
 #define VALUE_ERROR(cond, message, ...) if(!(cond)) { \
     fprintf(stderr, "COYAML: Error at %s:%d[%d]: " message "\n", \
     info->filename, info->event.start_mark.line+1, \
@@ -78,6 +86,28 @@ static struct unit_s {
 
 static char zero[sizeof(yaml_event_t)] = {0}; // compiler should make this zero
 
+static coyaml_anchor_t *find_anchor(coyaml_parseinfo_t *info, char *name) {
+    for(coyaml_anchor_t *a = info->anchor_first; a; a = a->next) {
+        if(!strcmp(name, a->name)) {
+            return a;
+        }
+    }
+    return NULL;
+}
+
+static char *find_var(coyaml_parseinfo_t *info, char *name, int nlen) {
+    for(coyaml_anchor_t *a = info->anchor_first; a; a = a->next) {
+        if(!strncmp(name, a->name, nlen) && strlen(a->name) == nlen) {
+            if(a->events[0].type != YAML_SCALAR_EVENT) {
+                SYNTAX_ERROR2_NULL("You can only substitute a scalar variable,"
+                    " use ``*'' to dereference complex anchors");
+            }
+            return a->events[0].data.scalar.value;
+        }
+    }
+    return NULL;
+}
+
 static int coyaml_next(coyaml_parseinfo_t *info) {
     // Temporarily without aliases
     if(info->anchor_pos >= 0) {
@@ -123,18 +153,20 @@ static int coyaml_next(coyaml_parseinfo_t *info) {
         SYNTAX_ERROR2("Nested anchors are not supported");
     }
     switch(info->event.type) {
-        case YAML_ALIAS_EVENT:
-            for(coyaml_anchor_t *a = info->anchor_first; a; a = a->next) {
-                if(!strcmp(info->event.data.alias.anchor, a->name)) {
-                    info->anchor_pos = 0;
-                    info->anchor_level = 0;
-                    info->anchor_unpacking = a;
-                    yaml_event_delete(&info->event);
-                    return coyaml_next(info);
-                }
+        case YAML_ALIAS_EVENT: {
+            coyaml_anchor_t *anch = find_anchor(info,
+                info->event.data.alias.anchor);
+            if(anch) {
+                info->anchor_pos = 0;
+                info->anchor_level = 0;
+                info->anchor_unpacking = anch;
+                yaml_event_delete(&info->event);
+                return coyaml_next(info);
+            } else {
+                SYNTAX_ERROR2("Anchor %s not found",
+                    info->event.data.alias.anchor);
             }
-            SYNTAX_ERROR2("Anchor %s not found", info->event.data.alias.anchor);
-            break;
+            } break;
         case YAML_MAPPING_START_EVENT:
         case YAML_SEQUENCE_START_EVENT:
             if(info->anchor_level >= 0 || info->event.data.scalar.anchor) {
@@ -233,11 +265,12 @@ void *config;
 }
 
 
-int coyaml_readfile(char *filename, coyaml_group_t *root,
-    void *target, bool debug) {
+int coyaml_readfile(coyaml_cmdline_t *cmdline,
+    coyaml_group_t *root, void *target) {
     coyaml_parseinfo_t sinfo;
-    sinfo.filename = filename;
-    sinfo.debug = debug;
+    sinfo.filename = cmdline->filename;
+    sinfo.debug = cmdline->debug;
+    sinfo.parse_vars = cmdline->variables;
     sinfo.head = target;
     sinfo.target = target;
     obstack_init(&sinfo.anchors);
@@ -249,8 +282,8 @@ int coyaml_readfile(char *filename, coyaml_group_t *root,
     sinfo.event.type = YAML_NO_EVENT;
 
     coyaml_parseinfo_t *info = &sinfo;
-    COYAML_DEBUG("Opening filename");
-    FILE *file = fopen(filename, "r");
+    COYAML_DEBUG("Opening file ``%s''", cmdline->filename);
+    FILE *file = fopen(cmdline->filename, "r");
     if(!file) return -1;
     yaml_parser_initialize(&info->parser);
     yaml_parser_set_input_file(&info->parser, file);
@@ -276,6 +309,11 @@ int coyaml_group(coyaml_parseinfo_t *info, coyaml_group_t *def, void *target) {
     SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
     CHECK(coyaml_next(info));
     while(info->event.type == YAML_SCALAR_EVENT) {
+        if(info->event.data.scalar.value[0] == '_') {
+            // Hidden keys, user's can use that for their own reusable anchors
+            coyaml_skip(info);
+            continue;
+        }
         coyaml_transition_t *tran;
         for(tran = def->transitions;
             tran && tran->symbol; ++tran) {
@@ -389,15 +427,60 @@ int coyaml_string(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) 
             VALUE_ERROR(read(file, body, finfo.st_size) == finfo.st_size,
                 "Couldn't read file ``%s''", fn);
             close(file);
+        } else if(!strcmp(tag, "!Raw")) {
+            *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
+                &info->head->pieces, info->event.data.scalar.value,
+                info->event.data.scalar.length);
+            *(int *)(((char *)target)+def->baseoffset+sizeof(char*)) \
+                = info->event.data.scalar.length;
         } else {
             VALUE_ERROR(TRUE, "Unknown tag ``%s''", tag);
         }
     } else {
-        *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
-            &info->head->pieces,
-            info->event.data.scalar.value, info->event.data.scalar.length);
-        *(int *)(((char *)target)+def->baseoffset+sizeof(char*)) =
-            info->event.data.scalar.length;
+        char *data = info->event.data.scalar.value;
+        int dlen = info->event.data.scalar.length;
+        if(info->parse_vars && strchr(data, '$')) {
+            obstack_blank(&info->head->pieces, 0);
+            for(char *c = data; *c;) {
+                if(*c != '$' && *c != '\\') {
+                    obstack_1grow(&info->head->pieces, *c);
+                    ++c;
+                    continue;
+                }
+                if(*c == '\\') {
+                    obstack_1grow(&info->head->pieces, *c);
+                    SYNTAX_ERROR(*++c);
+                    obstack_1grow(&info->head->pieces, *c);
+                    continue;
+                }
+                ++c;
+                char *name = c;
+                int nlen;
+                if(*c == '{') {
+                    ++c;
+                    ++name;
+                    while(*++c && *c != '}');
+                    nlen = c - name;
+                    SYNTAX_ERROR(*c++ == '}');
+                } else {
+                    while(*++c && isalnum(*c));
+                    nlen = c - name;
+                }
+                char *value = find_var(info, name, nlen);
+                if(value) {
+                    obstack_grow(&info->head->pieces, value, strlen(value));
+                } else {
+                    COYAML_DEBUG("Not found variable ``%.*s''", nlen, name);
+                }
+            }
+            obstack_1grow(&info->head->pieces, 0);
+            dlen = obstack_object_size(&info->head->pieces);
+            data = obstack_finish(&info->head->pieces);
+        } else {
+            data = obstack_copy0(&info->head->pieces, data, dlen);
+        }
+        *(char **)(((char *)target)+def->baseoffset) = data;
+        *(int *)(((char *)target)+def->baseoffset+sizeof(char*)) = dlen;
     }
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving String");

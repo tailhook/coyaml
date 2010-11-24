@@ -17,6 +17,11 @@ SimpleHTTPServer:
     X-Test: OK
     X-Fortune: 18+
     X-Test2: OK
+    X-Anchor: _var_
+    X-Var: _var_
+    X-Subst: hello_var_
+    X-Subst2: hello_var_world
+    X-No-Var: hello
   http-forward:
     -
       host: 192.168.0.1

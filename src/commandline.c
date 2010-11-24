@@ -24,6 +24,12 @@ int coyaml_cli_prepare(int argc, char **argv, coyaml_cmdline_t *cmdline) {
             case COYAML_CLI_DEBUG:
                 cmdline->debug = TRUE;
                 break;
+            case COYAML_CLI_VARS:
+                cmdline->variables = TRUE;
+                break;
+            case COYAML_CLI_NOVARS:
+                cmdline->variables = FALSE;
+                break;
             case COYAML_CLI_HELP:
                 fprintf(stdout, cmdline->full_description);
                 errno = ECOYAML_CLI_HELP;

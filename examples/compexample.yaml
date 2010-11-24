@@ -1,3 +1,4 @@
+_suffix: &var _var_
 
 SimpleHTTPServer:
   log-level: 3
@@ -9,8 +10,13 @@ SimpleHTTPServer:
   max-request-size: 1Mi
   extra-headers:
     X-Test: &ok OK
-    X-Fortune: 18+
+    X-Fortune: &fortune 18+
     X-Test2: *ok
+    X-Anchor: *var
+    X-Var: $var
+    X-Subst: hello$var
+    X-Subst2: hello${var}world
+    X-No-Var: hello$something
   http-forward:
     - host: 192.168.0.1
     - host: 192.168.0.2

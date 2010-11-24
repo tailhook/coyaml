@@ -135,13 +135,13 @@ class GenCCode(object):
                 if_(Statement(Call('free', [ Ident('ptr') ])))
 
         with ast(Function(Typename('bool'), self.prefix+'_readfile', [
-            Param('char *', 'filename'), Param(mainptr, 'target'),
-            Param('bool', 'debug') ], ast.block())) as fun:
+            Param('coyaml_cmdline_t *', 'cmdline'), Param(mainptr, 'target'),
+            ], ast.block())) as fun:
             fun(Return(Call('coyaml_readfile', [
-                Ident('filename'), Ref(Subscript(
+                Ident('cmdline'), Ref(Subscript(
                     Ident(self.prefix+'_group_vars'),
                     Int(len(self.states['group'].content)-1))),
-                Ident('target'), Ident('debug') ] )))
+                Ident('target')] )))
 
         errcheck = If(Or(
             Gt(Ident('errno'), Ident('ECOYAML_MAX')),
@@ -165,9 +165,8 @@ class GenCCode(object):
                 if_(Statement(Call('exit', [ Int(1) ])))
             with fun(If(Lt(
                 Call(self.prefix+'_readfile', [
-                    Dot(Ident(self.prefix+'_cmdline'), 'filename'),
+                    Ref(Ident(self.prefix+'_cmdline')),
                     Ident('ptr'),
-                    Dot(Ident(self.prefix+'_cmdline'), 'debug'),
                     ]),
                 Int(0)), fun.block())) as if_:
                 if_(errcheck) # reusing ast
@@ -214,6 +213,10 @@ class GenCCode(object):
             cmd(StrValue(name=String('config'), val=Int(501),
                 flag='NULL', has_arg='TRUE')),
             cmd(StrValue(name=String('debug-config'), val=Int(502),
+                flag='NULL', has_arg='FALSE')),
+            cmd(StrValue(name=String('config-vars'), val=Int(503),
+                flag='NULL', has_arg='FALSE')),
+            cmd(StrValue(name=String('config-no-vars'), val=Int(504),
                 flag='NULL', has_arg='FALSE')),
             cmd(StrValue(name=String('print-config'), val=Int(600),
                 flag='NULL', has_arg='FALSE')),
@@ -277,6 +280,7 @@ class GenCCode(object):
         ast(VarAssign('coyaml_cmdline_t', self.prefix+'_cmdline',
             StrValue(
                 debug=Ident('FALSE'),
+                variables=Ident('TRUE'),
                 filename=String(self.cfg.meta.default_config),
                 optstr=String(optstr),
                 optidx=self.prefix+'_optidx',
