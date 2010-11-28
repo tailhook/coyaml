@@ -96,12 +96,17 @@ def build(bld):
             config_name  = 'cfg',
             )
         if Options.options.run_tests:
-            rule =  './default/{0} -c ../examples/{1}.yaml -C -P > /tmp/{0}; diff -u /tmp/{0} ../examples/{1}.out'
+            rule = ('./default/{0} -c ../examples/{1}.yaml -C -P > /tmp/{0};'
+                'diff -u /tmp/{0} ../examples/{1}.out')
             bld(rule=rule.format('tinytest', 'tinyexample'),
                 always=True)
-            bld(rule=rule.format('compr', 'compexample'),
+            bld(rule='./default/compr -c ../examples/compexample.yaml'
+                ' --config-var clivar=CLI -C -P > /tmp/compr;'
+                ' diff -u /tmp/compr ../examples/compexample.out',
                 always=True)
-            bld(rule='./default/compr -c ../examples/compexample.yaml > /tmp/compr; diff -u /tmp/compr ../examples/compr.out',
+            bld(rule='./default/compr -c ../examples/compexample.yaml'
+                ' -Dclivar=CLI > /tmp/compr;'
+                ' diff -u /tmp/compr ../examples/compr.out',
                 always=True)
             bld(rule=rule.format('recursive', 'recexample'),
                 always=True)

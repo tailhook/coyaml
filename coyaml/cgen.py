@@ -222,12 +222,14 @@ class GenCCode(object):
                 flag='NULL', has_arg='FALSE')),
             cmd(StrValue(name=String('config-no-vars'), val=Int(504),
                 flag='NULL', has_arg='FALSE')),
+            cmd(StrValue(name=String('config-var'), val=Int(505),
+                flag='NULL', has_arg='TRUE')),
             cmd(StrValue(name=String('print-config'), val=Int(600),
                 flag='NULL', has_arg='FALSE')),
             cmd(StrValue(name=String('check-config'), val=Int(601),
                 flag='NULL', has_arg='FALSE')),
-            optstr = "hc:PC"
-            optidx = [500, 501, -1, 600, 601]
+            optstr = "hc:D:PC"
+            optidx = [500, 501, -1, 505, -1, 600, 601]
             for opt in self.cfg.commandline:
                 has_arg = opt.__class__ == core.Option
                 if opt.char:

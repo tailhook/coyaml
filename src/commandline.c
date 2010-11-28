@@ -34,6 +34,18 @@ int coyaml_cli_prepare(coyaml_context_t *ctx, int argc, char **argv) {
                 fprintf(stdout, ctx->cmdline->full_description);
                 errno = ECOYAML_CLI_HELP;
                 return -1;
+            case COYAML_CLI_VAR: {
+                char *nend = strchr(optarg, '=');
+                if(!nend || nend == optarg) {
+                    errno = ECOYAML_CLI_WRONG_OPTION;
+                    return -1;
+                }
+                char name[nend - optarg + 1];
+                memcpy(name, optarg, nend - optarg);
+                name[nend - optarg + 1] = 0;
+                if(coyaml_set_string(ctx, name, nend + 1, strlen(nend+1)))
+                    return -1;
+                } break;
             case '?':
                 fprintf(stderr, ctx->cmdline->usage);
                 errno = ECOYAML_CLI_WRONG_OPTION;
