@@ -12,6 +12,7 @@
 #include <ctype.h>
 
 #include <coyaml_src.h>
+#include "vars.h"
 
 #define CHECK(cond) if((cond) < 0) { return -1; }
 #define SYNTAX_ERROR(cond) if(!(cond)) { \
@@ -96,6 +97,11 @@ static coyaml_anchor_t *find_anchor(coyaml_parseinfo_t *info, char *name) {
 }
 
 static char *find_var(coyaml_parseinfo_t *info, char *name, int nlen) {
+    char *data;
+    int dlen;
+    if(!coyaml_get_string(info->context, name, &data, &dlen)) {
+        return data;
+    }
     for(coyaml_anchor_t *a = info->anchor_first; a; a = a->next) {
         if(!strncmp(name, a->name, nlen) && strlen(a->name) == nlen) {
             if(a->events[0].type != YAML_SCALAR_EVENT) {
@@ -267,6 +273,7 @@ void *config;
 
 int coyaml_readfile(coyaml_context_t *ctx) {
     coyaml_parseinfo_t sinfo;
+    sinfo.context = ctx;
     sinfo.filename = ctx->root_filename;
     sinfo.debug = ctx->debug;
     sinfo.parse_vars = ctx->parse_vars;
@@ -462,7 +469,7 @@ int coyaml_string(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) 
                     nlen = c - name;
                     SYNTAX_ERROR(*c++ == '}');
                 } else {
-                    while(*++c && isalnum(*c));
+                    while(*++c && (isalnum(*c) || *c == '_'));
                     nlen = c - name;
                 }
                 char *value = find_var(info, name, nlen);
@@ -655,6 +662,8 @@ coyaml_context_t *coyaml_context_init(coyaml_context_t *inp) {
     }
     ctx->parse_vars = TRUE;
     obstack_init(&ctx->pieces);
+    coyaml_set_string(ctx, "coyaml_version",
+        COYAML_VERSION, strlen(COYAML_VERSION));
     return ctx;
 }
 

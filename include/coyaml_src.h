@@ -47,32 +47,6 @@ typedef struct coyaml_parseinfo_s {
     // End anchors
 } coyaml_parseinfo_t;
 
-typedef enum coyaml_vartype_enum {
-    VAR_ANCHOR,
-    VAR_STRING,
-    VAR_INT,
-} coyaml_vartype_t;
-
-typedef struct coyaml_variable_s {
-    struct coyaml_variable_s *left;
-    struct coyaml_variable_s *right;
-    char *name;
-    int namelen;
-    coyaml_vartype_t type;
-    union {
-        struct {
-            yaml_event_t *events;
-        } anchor;
-        struct {
-            char *value;
-            int valuelen;
-        } string;
-        struct {
-            long value;
-        } integer;
-    } data;
-} coyaml_variable_t;
-
 struct coyaml_usertype_s;
 
 typedef int (*coyaml_convert_fun)(coyaml_parseinfo_t *info, char *value,

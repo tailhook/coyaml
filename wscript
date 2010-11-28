@@ -36,10 +36,11 @@ def build(bld):
             'src/parser.c',
             'src/commandline.c',
             'src/helpers.c',
+            'src/vars.c',
             ],
         target       = 'coyaml',
         includes     = ['include', 'src', bld.bdir + '/default'],
-        defines      = [],
+        defines      = ['COYAML_VERSION="%s"' % VERSION],
         ccflags      = ['-std=c99'],
         lib          = ['yaml'],
         )

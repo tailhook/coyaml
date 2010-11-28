@@ -135,8 +135,9 @@ class GenCCode(object):
                 Call('coyaml_context_init', [ Ident('inp') ])))
             with ctx(If(Not(_ctx), ctx.block())) as if_:
                 if_(Return(NULL))
-            ctx(Statement(Assign(Member(_ctx, 'target'),
-                Call(self.prefix + '_init', [ Ident('tinp') ]))))
+            ctx(Statement(Assign(Member(_ctx, 'target'), Coerce(
+                Typename('coyaml_head_t *'),
+                Call(self.prefix + '_init', [ Ident('tinp') ])))))
             with ctx(If(Not(Member(_ctx, 'target')), ctx.block())) as if_:
                 if_(Statement(Call('coyaml_context_free', [ _ctx ])))
                 if_(Return(NULL))

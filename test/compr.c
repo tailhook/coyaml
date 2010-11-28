@@ -85,14 +85,14 @@ int convert_listenaddr(coyaml_parseinfo_t *info, char *value,
 
 int main(int argc, char **argv) {
     coyaml_context_t *ctx = cfg_context(NULL, &config);
-    if(    coyaml_cli_prepare(ctx, argc, argv)
-        || coyaml_readfile(ctx)
-        || coyaml_cli_parse(ctx, argc, argv)
-        ) {
-        cfg_free(&config);
-        coyaml_context_free(ctx);
+    if(!ctx) {
+        perror(argv[0]);
         return 1;
     }
+    coyaml_cli_prepare_or_exit(ctx, argc, argv);
+    coyaml_set_string(ctx, "hello", "example", strlen("example"));
+    coyaml_readfile_or_exit(ctx);
+    coyaml_cli_parse_or_exit(ctx, argc, argv);
     coyaml_context_free(ctx);
     CFG_STRING_LOOP(item, config.SimpleHTTPServer.directory_indexes) {
         printf("INDEX: \"%s\"\n", item->value);

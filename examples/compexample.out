@@ -22,6 +22,8 @@ SimpleHTTPServer:
     X-Subst: hello_var_
     X-Subst2: hello_var_world
     X-No-Var: hello
+    X-Uservar: hello example
+    X-Version: 0.2
   http-forward:
     -
       host: 192.168.0.1

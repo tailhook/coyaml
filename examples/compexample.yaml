@@ -17,6 +17,8 @@ SimpleHTTPServer:
     X-Subst: hello$var
     X-Subst2: hello${var}world
     X-No-Var: hello$something
+    X-Uservar: hello $hello
+    X-Version: $coyaml_version
   http-forward:
     - host: 192.168.0.1
     - host: 192.168.0.2
