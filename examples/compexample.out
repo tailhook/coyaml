@@ -24,6 +24,7 @@ SimpleHTTPServer:
     X-No-Var: hello
     X-Uservar: hello example
     X-Version: 0.2
+    X-Integer: 123 bytes
   http-forward:
     -
       host: 192.168.0.1

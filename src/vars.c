@@ -86,6 +86,10 @@ int coyaml_get_string(coyaml_context_t *ctx, char *name,
                 *data = var->data.string.value;
                 *dlen = var->data.string.value_len;
                 return 0;
+            case COYAML_VAR_INTEGER:
+                *data = obstack_alloc(&ctx->pieces, 24);
+                *dlen = sprintf(*data, "%ld", var->data.integer.value);
+                return 0;
             default:
                 return -1; // maybe will fix this
         };

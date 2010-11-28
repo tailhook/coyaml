@@ -19,6 +19,7 @@ SimpleHTTPServer:
     X-No-Var: hello$something
     X-Uservar: hello $hello
     X-Version: $coyaml_version
+    X-Integer: $intvar bytes
   http-forward:
     - host: 192.168.0.1
     - host: 192.168.0.2

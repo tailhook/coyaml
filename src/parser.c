@@ -99,7 +99,11 @@ static coyaml_anchor_t *find_anchor(coyaml_parseinfo_t *info, char *name) {
 static char *find_var(coyaml_parseinfo_t *info, char *name, int nlen) {
     char *data;
     int dlen;
-    if(!coyaml_get_string(info->context, name, &data, &dlen)) {
+    char cname[nlen+1];
+    memcpy(cname, name, nlen);
+    cname[nlen] = 0;
+    COYAML_DEBUG("Searching for ``$%s''", cname);
+    if(!coyaml_get_string(info->context, cname, &data, &dlen)) {
         return data;
     }
     for(coyaml_anchor_t *a = info->anchor_first; a; a = a->next) {

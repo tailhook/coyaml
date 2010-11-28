@@ -91,6 +91,7 @@ int main(int argc, char **argv) {
     }
     coyaml_cli_prepare_or_exit(ctx, argc, argv);
     coyaml_set_string(ctx, "hello", "example", strlen("example"));
+    coyaml_set_integer(ctx, "intvar", 123);
     coyaml_readfile_or_exit(ctx);
     coyaml_cli_parse_or_exit(ctx, argc, argv);
     coyaml_context_free(ctx);
