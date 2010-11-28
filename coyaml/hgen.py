@@ -40,11 +40,11 @@ class GenHCode(object):
             self._struct_body(ms, self.cfg.data, root=ast)
         ast(VSpace())
         ast(Var(Typename('coyaml_cmdline_t'), self.prefix+'_cmdline'))
-        ast(Func(Typename('bool'), self.prefix+'_readfile', [
-            Param(Typename('coyaml_cmdline_t *'), 'cmdline'),
+        ast(Func(Typename(self.prefix+'_main_t *'), self.prefix+'_init', [
             Param(Typename(self.prefix+'_main_t *'), 'target'),
             ]))
-        ast(Func(Typename(self.prefix+'_main_t *'), self.prefix+'_init', [
+        ast(Func(Typename('coyaml_context_t *'), self.prefix+'_context', [
+            Param(Typename('coyaml_context_t *'), 'ctx'),
             Param(Typename(self.prefix+'_main_t *'), 'target'),
             ]))
         ast(Func(Void(), self.prefix+'_free', [

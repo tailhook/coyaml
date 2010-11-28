@@ -34,9 +34,6 @@ typedef struct coyaml_mappingel_head_s {
 } coyaml_mappingel_head_t;
 
 typedef struct coyaml_cmdline_s {
-    char *filename;
-    bool debug;
-    bool variables;
     char *usage;
     char *full_description;
     char *optstr;
@@ -46,7 +43,31 @@ typedef struct coyaml_cmdline_s {
     coyaml_print_fun print_callback;
 } coyaml_cmdline_t;
 
-int coyaml_cli_prepare(int argc, char **argv, coyaml_cmdline_t *);
-int coyaml_cli_parse(int argc, char **argv, coyaml_cmdline_t *, void *target);
+typedef struct coyaml_context_s {
+    bool debug;
+    bool parse_vars;
+    void *target;
+    char *program_name;
+    coyaml_cmdline_t *cmdline;
+    struct coyaml_group_s *root_group;
+    char *root_filename;
+    bool free_object;
+    
+    struct obstack pieces;
+    struct coyaml_variable_s *variables;
+    struct coyaml_file_s *root_file;
+    struct coyaml_file_s *current_file;
+} coyaml_context_t;
+
+int coyaml_readfile(coyaml_context_t *ctx);
+int coyaml_cli_prepare(coyaml_context_t *, int argc, char **argv);
+int coyaml_cli_parse(coyaml_context_t *, int argc, char **argv);
+
+int coyaml_add_string_var(coyaml_context_t *, char *name, char *data, int dlen);
+int coyaml_add_integer_var(coyaml_context_t *ctx, char *name, long value);
+
+void coyaml_cli_prepare_or_exit(coyaml_context_t *ctx, int argc, char **argv);
+void coyaml_readfile_or_exit(coyaml_context_t *ctx);
+void coyaml_cli_parse_or_exit(coyaml_context_t *ctx, int argc, char **argv);
 
 #endif // COYAML_HDR_HEADER

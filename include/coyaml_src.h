@@ -26,6 +26,7 @@ typedef struct coyaml_anchor_s {
 } coyaml_anchor_t;
 
 typedef struct coyaml_parseinfo_s {
+    struct coyaml_context_s *context;
     bool debug;
     bool parse_vars;
     char *filename;
@@ -45,6 +46,32 @@ typedef struct coyaml_parseinfo_s {
     int anchor_pos;
     // End anchors
 } coyaml_parseinfo_t;
+
+typedef enum coyaml_vartype_enum {
+    VAR_ANCHOR,
+    VAR_STRING,
+    VAR_INT,
+} coyaml_vartype_t;
+
+typedef struct coyaml_variable_s {
+    struct coyaml_variable_s *left;
+    struct coyaml_variable_s *right;
+    char *name;
+    int namelen;
+    coyaml_vartype_t type;
+    union {
+        struct {
+            yaml_event_t *events;
+        } anchor;
+        struct {
+            char *value;
+            int valuelen;
+        } string;
+        struct {
+            long value;
+        } integer;
+    } data;
+} coyaml_variable_t;
 
 struct coyaml_usertype_s;
 
@@ -189,8 +216,11 @@ int coyaml_dir_o(char *value, coyaml_dir_t *prop, void *target);
 int coyaml_string_o(char *value, coyaml_string_t *prop, void *target);
 int coyaml_custom_o(char *value, coyaml_custom_t *prop, void *target);
 
-int coyaml_readfile(coyaml_cmdline_t *cmdline,
-    coyaml_group_t *root, void *target);
+int coyaml_readfile(coyaml_context_t *);
+coyaml_context_t *coyaml_context_init(coyaml_context_t *ctx);
+void coyaml_context_free(coyaml_context_t *ctx);
+
+void coyaml_config_free(void *ptr);
 
 int coyaml_tagged_scalar(coyaml_parseinfo_t *info, char *value,
     struct coyaml_usertype_s *prop, void *target);

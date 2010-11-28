@@ -3,7 +3,7 @@
 import Options, Scripting
 
 APPNAME='coyaml'
-VERSION='0.1.11'
+VERSION='0.2'
 
 top = '.'
 out = 'build'
@@ -35,6 +35,7 @@ def build(bld):
         source       = [
             'src/parser.c',
             'src/commandline.c',
+            'src/helpers.c',
             ],
         target       = 'coyaml',
         includes     = ['include', 'src', bld.bdir + '/default'],
@@ -54,6 +55,7 @@ def build(bld):
     bld.install_files('${PREFIX}/bin', 'scripts/coyaml', chmod=0o755)
     if bld.env.BUILD_TESTS:
         import coyaml.waf
+        bld.add_group()
         bld(
             features     = ['cc', 'cprogram', 'coyaml'],
             source       = [

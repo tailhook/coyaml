@@ -265,14 +265,13 @@ void *config;
 }
 
 
-int coyaml_readfile(coyaml_cmdline_t *cmdline,
-    coyaml_group_t *root, void *target) {
+int coyaml_readfile(coyaml_context_t *ctx) {
     coyaml_parseinfo_t sinfo;
-    sinfo.filename = cmdline->filename;
-    sinfo.debug = cmdline->debug;
-    sinfo.parse_vars = cmdline->variables;
-    sinfo.head = target;
-    sinfo.target = target;
+    sinfo.filename = ctx->root_filename;
+    sinfo.debug = ctx->debug;
+    sinfo.parse_vars = ctx->parse_vars;
+    sinfo.head = ctx->target;
+    sinfo.target = ctx->target;
     obstack_init(&sinfo.anchors);
     sinfo.anchor_level = -1;
     sinfo.anchor_pos = -1;
@@ -282,13 +281,13 @@ int coyaml_readfile(coyaml_cmdline_t *cmdline,
     sinfo.event.type = YAML_NO_EVENT;
 
     coyaml_parseinfo_t *info = &sinfo;
-    COYAML_DEBUG("Opening file ``%s''", cmdline->filename);
-    FILE *file = fopen(cmdline->filename, "r");
+    COYAML_DEBUG("Opening file ``%s''", sinfo.filename);
+    FILE *file = fopen(sinfo.filename, "r");
     if(!file) return -1;
     yaml_parser_initialize(&info->parser);
     yaml_parser_set_input_file(&info->parser, file);
 
-    int result = coyaml_root(info, root, target);
+    int result = coyaml_root(info, ctx->root_group, ctx->target);
 
 
     for(coyaml_anchor_t *a = sinfo.anchor_first; a; a = a->next) {
@@ -641,3 +640,35 @@ int coyaml_tagged_scalar(coyaml_parseinfo_t *info, char *value,
     COYAML_DEBUG("Leaving Tagged Scalar");
     return 0;
 }
+
+coyaml_context_t *coyaml_context_init(coyaml_context_t *inp) {
+    coyaml_context_t *ctx;
+    if(!inp) {
+        ctx = malloc(sizeof(coyaml_context_t));
+        if(!ctx) return NULL;
+        memset(ctx, 0, sizeof(coyaml_context_t));
+        ctx->free_object = TRUE;
+    } else {
+        ctx = inp;
+        memset(ctx, 0, sizeof(coyaml_context_t));
+        ctx->free_object = FALSE;
+    }
+    ctx->parse_vars = TRUE;
+    obstack_init(&ctx->pieces);
+    return ctx;
+}
+
+void coyaml_context_free(coyaml_context_t *ctx) {
+    obstack_free(&ctx->pieces, NULL);
+    if(ctx->free_object) {
+        free(ctx);
+    }
+}
+
+void coyaml_config_free(void *ptr) {
+    obstack_free(&((coyaml_head_t *)ptr)->pieces, NULL);
+    if(((coyaml_head_t *)ptr)->free_object) {
+        free(ptr);
+    }
+}
+

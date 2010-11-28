@@ -124,7 +124,32 @@ class GenCCode(object):
                 Ref(Dot(Member(Ident('res'), 'head'), 'pieces'))])))
             init(Statement(Call(self.prefix + '_defaults', [ Ident('res') ])))
             init(Return(Ident('res')))
-
+        
+        with ast(Function(Typename('coyaml_context_t *'),
+            self.prefix+'_context', [
+            Param(Typename('coyaml_context_t *'), 'inp'),
+            Param(Typename(self.prefix+'_main_t *'), 'tinp'),
+            ], ast.block())) as ctx:
+            _ctx = Ident('ctx')
+            ctx(VarAssign('coyaml_context_t *', _ctx,
+                Call('coyaml_context_init', [ Ident('inp') ])))
+            with ctx(If(Not(_ctx), ctx.block())) as if_:
+                if_(Return(NULL))
+            ctx(Statement(Assign(Member(_ctx, 'target'),
+                Call(self.prefix + '_init', [ Ident('tinp') ]))))
+            with ctx(If(Not(Member(_ctx, 'target')), ctx.block())) as if_:
+                if_(Statement(Call('coyaml_context_free', [ _ctx ])))
+                if_(Return(NULL))
+            ctx(Statement(Assign(Member(_ctx, 'program_name'),
+                String(self.cfg.meta.program_name))))
+            ctx(Statement(Assign(Member(_ctx, 'root_filename'),
+                String(self.cfg.meta.default_config))))
+            ctx(Statement(Assign(Member(_ctx, 'cmdline'),
+                Ref(self.prefix + '_cmdline'))))
+            ctx(Statement(Assign(Member(_ctx, 'root_group'), Ref(Subscript(
+                Ident(self.prefix+'_group_vars'),
+                Int(len(self.states['group'].content)-1))))))
+        
         with ast(Function(Void(), self.prefix+'_free', [
             Param(mainptr, Ident('ptr')) ], ast.block())) as free:
             free(Statement(Call('obstack_free', [
@@ -135,13 +160,9 @@ class GenCCode(object):
                 if_(Statement(Call('free', [ Ident('ptr') ])))
 
         with ast(Function(Typename('bool'), self.prefix+'_readfile', [
-            Param('coyaml_cmdline_t *', 'cmdline'), Param(mainptr, 'target'),
+            Param('coyaml_context_t *', 'ctx'),
             ], ast.block())) as fun:
-            fun(Return(Call('coyaml_readfile', [
-                Ident('cmdline'), Ref(Subscript(
-                    Ident(self.prefix+'_group_vars'),
-                    Int(len(self.states['group'].content)-1))),
-                Ident('target')] )))
+            fun(Return(Call('coyaml_readfile', [Ident('ctx')] )))
 
         errcheck = If(Or(
             Gt(Ident('errno'), Ident('ECOYAML_MAX')),
@@ -149,39 +170,21 @@ class GenCCode(object):
 
         with ast(Function(mainptr, self.prefix+'_load', [ Param(mainptr, 'ptr'),
             Param('int','argc'), Param('char**','argv') ], ast.block())) as fun:
-            with fun(If(Lt(Call('coyaml_cli_prepare', [ Ident('argc'),
-                Ident('argv'), Ref(Ident(self.prefix+'_cmdline')) ]), Int(0)),
+            fun(Var('coyaml_context_t', 'ctx'))
+            with fun(If(Lt(Call(self.prefix+'_context', [
+                Ref(Ident('ctx')), Ident('ptr') ]), Int(0)),
                 fun.block())) as if_:
-                with if_(errcheck) as if1:
-                    if1(Statement(Call('perror', [
-                        Subscript(Ident('argv'), Int(0)) ])))
-                if_(Statement(Call('exit', [ Ternary(
-                    Eq(Ident('errno'), Ident('ECOYAML_CLI_HELP')),
-                    Int(0), Int(1)) ])))
-            fun(Statement(Assign(Ident('ptr'),
-                Call(self.prefix+'_init', [ Ident('ptr') ]))))
-            with fun(If(Not(Ident('ptr')), fun.block())) as if_:
-                if_(errcheck) # reusing ast
+                if_(Statement(Call('perror', [
+                    Subscript(Ident('argv'), Int(0)) ])))
                 if_(Statement(Call('exit', [ Int(1) ])))
-            with fun(If(Lt(
-                Call(self.prefix+'_readfile', [
-                    Ref(Ident(self.prefix+'_cmdline')),
-                    Ident('ptr'),
-                    ]),
-                Int(0)), fun.block())) as if_:
-                if_(errcheck) # reusing ast
-                if_(Statement(Call(self.prefix+'_free', [ Ident('ptr') ])))
-                if_(Statement(Call('exit', [ Int(1) ])))
-            with fun(If(Lt(
-                Call('coyaml_cli_parse', [ Ident('argc'), Ident('argv'),
-                    Ref(Ident(self.prefix+'_cmdline')), Ident('ptr') ]),
-                Int(0)), fun.block())) as if_:
-                if_(errcheck) # reusing ast
-                if_(Statement(Call(self.prefix+'_free', [ Ident('ptr') ])))
-                if_(Statement(Call('exit', [ Ternary(
-                    Eq(Ident('errno'), Ident('ECOYAML_CLI_EXIT')),
-                    Int(0), Int(1)) ])))
-            fun(Return(Ident('ptr')))
+            fun(Statement(Call('coyaml_cli_prepare_or_exit', [
+                Ref(Ident('ctx')),
+                Ident('argc'), Ident('argv')])))
+            fun(Statement(Call('coyaml_readfile_or_exit',
+                [ Ref(Ident('ctx')) ])))
+            fun(Statement(Call('coyaml_cli_parse_or_exit', [ Ref(Ident('ctx')),
+                Ident('argc'), Ident('argv') ])))
+            fun(Statement(Call('coyaml_context_free', [ Ref(Ident('ctx')) ])))
 
     def make_options(self, ast):
         optval = 1000
@@ -279,9 +282,6 @@ class GenCCode(object):
         usage = "Usage: {m.program_name} [options]\n".format(m=self.cfg.meta)
         ast(VarAssign('coyaml_cmdline_t', self.prefix+'_cmdline',
             StrValue(
-                debug=Ident('FALSE'),
-                variables=Ident('TRUE'),
-                filename=String(self.cfg.meta.default_config),
                 optstr=String(optstr),
                 optidx=self.prefix+'_optidx',
                 usage=String(usage),
@@ -363,9 +363,16 @@ class GenCCode(object):
             item.struct_name = struct_name
             item.member_path = mem
             if not name.startswith('_'):
-                past(Statement(Call('fprintf', [ Ident('out'),
-                    String('%s{0}{1}: {2}\n'.format(pws, name,
-                    placeholders[item.__class__])), Ident('prefix'), mem ])))
+                if placeholders[item.__class__] == '%s':
+                    lenmem = mem.__class__(mem.source, mem.name.value + '_len')
+                    past(Statement(Call('fprintf', [ Ident('out'),
+                        String('%s{0}{1}: %.*s\n'.format(pws, name,
+                        placeholders[item.__class__])), Ident('prefix'),
+                        lenmem, mem ])))
+                else:
+                    past(Statement(Call('fprintf', [ Ident('out'),
+                        String('%s{0}{1}: {2}\n'.format(pws, name,
+                        placeholders[item.__class__])), Ident('prefix'), mem ])))
             if hasattr(item, 'default_'):
                 asttyp = cfgtoast[item.__class__]
                 dast(Statement(Assign(mem, asttyp(item.default_))))

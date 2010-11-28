@@ -15,8 +15,10 @@ int convert_connectaddr(coyaml_parseinfo_t *info, char *value,
         if(info) {
             target->unix_socket = obstack_copy0(&info->head->pieces,
                 value, strlen(value));
+            target->unix_socket_len = strlen(value);
         } else {
             target->unix_socket = value;
+            target->unix_socket_len = strlen(value);
         }
     } else { // TCP socket
         char *pos = strchr(value, ':');
@@ -24,8 +26,10 @@ int convert_connectaddr(coyaml_parseinfo_t *info, char *value,
             if(info) {
                 target->host = obstack_copy0(&info->head->pieces,
                     value, pos-value);
+                target->host_len = pos-value;
             } else {
                 target->host = value;
+                target->host_len = pos-value;
                 *pos = 0;
             }
             target->port = atoi(pos+1);
@@ -33,8 +37,10 @@ int convert_connectaddr(coyaml_parseinfo_t *info, char *value,
             if(info) {
                 target->host = obstack_copy0(&info->head->pieces,
                     value, strlen(value));
+                target->host_len = strlen(value);
             } else {
                 target->host = value;
+                target->host_len = strlen(value);
             }
         }
     }
@@ -78,7 +84,16 @@ int convert_listenaddr(coyaml_parseinfo_t *info, char *value,
 }
 
 int main(int argc, char **argv) {
-    cfg_load(&config, argc, argv);
+    coyaml_context_t *ctx = cfg_context(NULL, &config);
+    if(    coyaml_cli_prepare(ctx, argc, argv)
+        || coyaml_readfile(ctx)
+        || coyaml_cli_parse(ctx, argc, argv)
+        ) {
+        cfg_free(&config);
+        coyaml_context_free(ctx);
+        return 1;
+    }
+    coyaml_context_free(ctx);
     CFG_STRING_LOOP(item, config.SimpleHTTPServer.directory_indexes) {
         printf("INDEX: \"%s\"\n", item->value);
     }

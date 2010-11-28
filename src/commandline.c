@@ -8,34 +8,34 @@
     errno = ECOYAML_VALUE_ERROR; \
     return -1; }
 
-int coyaml_cli_prepare(int argc, char **argv, coyaml_cmdline_t *cmdline) {
+int coyaml_cli_prepare(coyaml_context_t *ctx, int argc, char **argv) {
     int opt;
     int old_optind = optind;
     while((opt = getopt_long(argc, argv,
-        cmdline->optstr, cmdline->options, NULL)) != -1) {
-        char *pos = strchr(cmdline->optstr, opt);
+        ctx->cmdline->optstr, ctx->cmdline->options, NULL)) != -1) {
+        char *pos = strchr(ctx->cmdline->optstr, opt);
         if(pos) {
-            opt = cmdline->optidx[pos - cmdline->optstr];
+            opt = ctx->cmdline->optidx[pos - ctx->cmdline->optstr];
         }
         switch(opt) {
             case COYAML_CLI_FILENAME:
-                cmdline->filename = optarg;
+                ctx->root_filename = optarg;
                 break;
             case COYAML_CLI_DEBUG:
-                cmdline->debug = TRUE;
+                ctx->debug = TRUE;
                 break;
             case COYAML_CLI_VARS:
-                cmdline->variables = TRUE;
+                ctx->parse_vars = TRUE;
                 break;
             case COYAML_CLI_NOVARS:
-                cmdline->variables = FALSE;
+                ctx->parse_vars = FALSE;
                 break;
             case COYAML_CLI_HELP:
-                fprintf(stdout, cmdline->full_description);
+                fprintf(stdout, ctx->cmdline->full_description);
                 errno = ECOYAML_CLI_HELP;
                 return -1;
             case '?':
-                fprintf(stderr, cmdline->usage);
+                fprintf(stderr, ctx->cmdline->usage);
                 errno = ECOYAML_CLI_WRONG_OPTION;
                 return -1;
             default:
@@ -46,22 +46,22 @@ int coyaml_cli_prepare(int argc, char **argv, coyaml_cmdline_t *cmdline) {
     return 0;
 }
 
-int coyaml_cli_parse(int argc, char **argv, coyaml_cmdline_t *cmdline,
-    void *target) {
+int coyaml_cli_parse(coyaml_context_t *ctx, int argc, char **argv) {
     int opt;
     int old_optind = optind;
     bool do_print = 0;
     bool do_exit = 0;
     while((opt = getopt_long(argc, argv,
-        cmdline->optstr, cmdline->options, NULL)) != -1) {
-        char *pos = strchr(cmdline->optstr, opt);
+        ctx->cmdline->optstr, ctx->cmdline->options, NULL)) != -1) {
+        char *pos = strchr(ctx->cmdline->optstr, opt);
         if(pos) {
-            opt = cmdline->optidx[pos - cmdline->optstr];
+            opt = ctx->cmdline->optidx[pos - ctx->cmdline->optstr];
         }
         if(opt >= COYAML_CLI_USER) {
-            coyaml_option_t *o = &cmdline->coyaml_options[opt-COYAML_CLI_USER];
-            if(o->callback(optarg, o->prop, target) < 0) {
-                fprintf(stderr, cmdline->usage);
+            coyaml_option_t *o = \
+                &ctx->cmdline->coyaml_options[opt-COYAML_CLI_USER];
+            if(o->callback(optarg, o->prop, ctx->target) < 0) {
+                fprintf(stderr, ctx->cmdline->usage);
                 errno = ECOYAML_CLI_WRONG_OPTION;
                 return -1;
             }
@@ -78,14 +78,14 @@ int coyaml_cli_parse(int argc, char **argv, coyaml_cmdline_t *cmdline,
         } else if(opt >= COYAML_CLI_FIRST) {
             // nothing, was used in coyaml_cli_prepare
         } else {
-            fprintf(stderr, cmdline->usage);
+            fprintf(stderr, ctx->cmdline->usage);
             errno = ECOYAML_CLI_WRONG_OPTION;
             return -1;
         }
     }
     optind = old_optind;
     if(do_print) {
-        cmdline->print_callback(stdout, "", target);
+        ctx->cmdline->print_callback(stdout, "", ctx->target);
     }
     if(do_exit) {
         errno = ECOYAML_CLI_EXIT;
