@@ -1,3 +1,5 @@
+#ifndef _H_VARS
+#define _H_VARS
 #include <coyaml_src.h>
 
 typedef enum coyaml_vartype_enum {
@@ -27,3 +29,4 @@ typedef struct coyaml_variable_s {
 } coyaml_variable_t;
 
 int coyaml_get_string(coyaml_context_t *ctx, char*name, char **data, int *dlen);
+#endif //_H_VARS

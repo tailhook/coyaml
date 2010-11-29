@@ -55,8 +55,6 @@ typedef struct coyaml_context_s {
     
     struct obstack pieces;
     struct coyaml_variable_s *variables;
-    struct coyaml_file_s *root_file;
-    struct coyaml_file_s *current_file;
 } coyaml_context_t;
 
 int coyaml_readfile(coyaml_context_t *ctx);

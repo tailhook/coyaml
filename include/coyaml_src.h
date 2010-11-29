@@ -30,9 +30,7 @@ typedef struct coyaml_parseinfo_s {
     struct coyaml_context_s *context;
     bool debug;
     bool parse_vars;
-    char *filename;
     void *target;
-    yaml_parser_t parser;
     yaml_event_t event;
     // Memory allocation structures
     struct coyaml_head_s *head;
@@ -46,6 +44,8 @@ typedef struct coyaml_parseinfo_s {
     coyaml_anchor_t *anchor_unpacking;
     int anchor_pos;
     // End anchors
+    struct coyaml_stack_s *root_file;
+    struct coyaml_stack_s *current_file;
 } coyaml_parseinfo_t;
 
 struct coyaml_usertype_s;

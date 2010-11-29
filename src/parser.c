@@ -13,32 +13,33 @@
 
 #include <coyaml_src.h>
 #include "vars.h"
+#include "parser.h"
 
 #define CHECK(cond) if((cond) < 0) { return -1; }
 #define SYNTAX_ERROR(cond) if(!(cond)) { \
     fprintf(stderr, "COYAML: Syntax error in config file ``%s'' " \
         "at line %d column %d\n", \
-    info->filename, info->event.start_mark.line+1, \
+    info->current_file->filename, info->event.start_mark.line+1, \
     info->event.start_mark.column, info->event.type); \
     errno = ECOYAML_SYNTAX_ERROR; \
     return -1; }
 #define SYNTAX_ERROR2(message, ...) if(TRUE) { \
     fprintf(stderr, "COAYML: Syntax error in config file ``%s'' " \
         "at line %d column %d: " message "\n", \
-    info->filename, info->event.start_mark.line+1, \
+    info->current_file->filename, info->event.start_mark.line+1, \
     info->event.start_mark.column, ##__VA_ARGS__); \
     errno = ECOYAML_SYNTAX_ERROR; \
     return -1; }
 #define SYNTAX_ERROR2_NULL(message, ...) if(TRUE) { \
     fprintf(stderr, "COAYML: Syntax error in config file ``%s'' " \
         "at line %d column %d: " message "\n", \
-    info->filename, info->event.start_mark.line+1, \
+    info->current_file->filename, info->event.start_mark.line+1, \
     info->event.start_mark.column, ##__VA_ARGS__); \
     errno = ECOYAML_SYNTAX_ERROR; \
     return NULL; }
 #define VALUE_ERROR(cond, message, ...) if(!(cond)) { \
     fprintf(stderr, "COYAML: Error at %s:%d[%d]: " message "\n", \
-    info->filename, info->event.start_mark.line+1, \
+    info->current_file->filename, info->event.start_mark.line+1, \
     info->event.start_mark.column, ##__VA_ARGS__); \
     errno = ECOYAML_VALUE_ERROR; \
     return -1; }
@@ -118,6 +119,33 @@ static char *find_var(coyaml_parseinfo_t *info, char *name, int nlen) {
     return NULL;
 }
 
+static coyaml_stack_t *open_file(coyaml_parseinfo_t *info, char *filename) {
+    coyaml_stack_t *res = malloc(sizeof(coyaml_stack_t));
+    if(!res) return NULL;
+    COYAML_DEBUG("Opening file ``%s''", filename);
+    res->file = fopen(filename, "r");
+    if(!res->file) {
+        free(res);
+        return NULL;
+    }
+    yaml_parser_initialize(&res->parser);
+    yaml_parser_set_input_file(&res->parser, res->file);
+    res->filename = filename;
+    char *suffix = strrchr(filename, '/');
+    if(suffix) {
+        res->basedir_len = suffix - filename + 1;
+        res->basedir = obstack_alloc(&info->context->pieces,res->basedir_len+1);
+        strncpy(res->basedir, filename, res->basedir_len);
+        res->basedir[res->basedir_len] = 0;
+    } else {
+        res->basedir = "";
+        res->basedir_len = 0;
+    }
+    res->next = NULL;
+    res->prev = NULL;
+    return res;
+}
+
 static int coyaml_next(coyaml_parseinfo_t *info) {
     // Temporarily without aliases
     if(info->anchor_pos >= 0) {
@@ -158,10 +186,58 @@ static int coyaml_next(coyaml_parseinfo_t *info) {
     if(info->anchor_level == 0) {
         info->anchor_level = -1;
     }
-    COYAML_ASSERT(yaml_parser_parse(&info->parser, &info->event));
+    COYAML_ASSERT(yaml_parser_parse(&info->current_file->parser, &info->event));
     if(info->event.data.scalar.anchor && info->anchor_level >= 0) {
         SYNTAX_ERROR2("Nested anchors are not supported");
     }
+    // Include support
+    switch(info->event.type) {
+        case YAML_SCALAR_EVENT:
+            if(info->event.data.scalar.tag
+                && !strcmp(info->event.data.scalar.tag, "!Include")) {
+                char *fn = info->event.data.scalar.value;
+                SYNTAX_ERROR(*fn);
+                if(*fn != '/') {
+                    fn = alloca(info->current_file->basedir_len +
+                        info->event.data.scalar.length + 1);
+                    strcpy(fn, info->current_file->basedir);
+                    strcpy(fn + info->current_file->basedir_len,
+                        info->event.data.scalar.value);
+                }
+                coyaml_stack_t *cur = open_file(info, fn);
+                VALUE_ERROR(cur, "Can't open file ``%s''", fn);
+                cur->prev = info->current_file;
+                info->current_file->next = cur;
+                info->current_file = cur;
+                
+                yaml_event_delete(&info->event);
+                COYAML_ASSERT(yaml_parser_parse(&cur->parser, &info->event));
+                SYNTAX_ERROR(info->event.type == YAML_STREAM_START_EVENT);
+                yaml_event_delete(&info->event);
+                COYAML_ASSERT(yaml_parser_parse(&cur->parser, &info->event));
+                SYNTAX_ERROR(info->event.type == YAML_DOCUMENT_START_EVENT);
+                yaml_event_delete(&info->event);
+                COYAML_ASSERT(yaml_parser_parse(&cur->parser, &info->event));
+            }
+            break;
+        case YAML_DOCUMENT_END_EVENT:
+            if(info->current_file != info->root_file) {
+                coyaml_stack_t *cur = info->current_file;
+                yaml_event_delete(&info->event);
+                COYAML_ASSERT(yaml_parser_parse(&cur->parser, &info->event));
+                SYNTAX_ERROR(info->event.type == YAML_STREAM_END_EVENT);
+                yaml_event_delete(&info->event);
+                yaml_parser_delete(&cur->parser);
+                fclose(cur->file);
+                info->current_file = cur->prev;
+                info->current_file->next = NULL;
+                free(cur);
+                COYAML_ASSERT(yaml_parser_parse(&info->current_file->parser,
+                    &info->event));
+            }
+            break;
+    }
+    // Anchor support
     switch(info->event.type) {
         case YAML_ALIAS_EVENT: {
             coyaml_anchor_t *anch = find_anchor(info,
@@ -274,11 +350,9 @@ void *config;
     return 0;
 }
 
-
 int coyaml_readfile(coyaml_context_t *ctx) {
     coyaml_parseinfo_t sinfo;
     sinfo.context = ctx;
-    sinfo.filename = ctx->root_filename;
     sinfo.debug = ctx->debug;
     sinfo.parse_vars = ctx->parse_vars;
     sinfo.head = ctx->target;
@@ -292,14 +366,10 @@ int coyaml_readfile(coyaml_context_t *ctx) {
     sinfo.event.type = YAML_NO_EVENT;
 
     coyaml_parseinfo_t *info = &sinfo;
-    COYAML_DEBUG("Opening file ``%s''", sinfo.filename);
-    FILE *file = fopen(sinfo.filename, "r");
-    if(!file) return -1;
-    yaml_parser_initialize(&info->parser);
-    yaml_parser_set_input_file(&info->parser, file);
+    
+    sinfo.root_file = sinfo.current_file = open_file(info, ctx->root_filename);
 
     int result = coyaml_root(info, ctx->root_group, ctx->target);
-
 
     for(coyaml_anchor_t *a = sinfo.anchor_first; a; a = a->next) {
         for(yaml_event_t *ev = a->events; ev->type != YAML_NO_EVENT; ++ev) {
@@ -307,8 +377,13 @@ int coyaml_readfile(coyaml_context_t *ctx) {
         }
     }
     obstack_free(&sinfo.anchors, NULL);
-    yaml_parser_delete(&info->parser);
-    fclose(file);
+    
+    for(coyaml_stack_t *t = info->current_file, *n; t; t = n) {
+        yaml_parser_delete(&t->parser);
+        fclose(t->file);
+        n = t->prev;
+        free(t);
+    }
     COYAML_DEBUG("Done %s", result ? "ERROR" : "OK");
     return result;
 
@@ -415,17 +490,14 @@ int coyaml_string(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) 
         if(!strcmp(tag, "!FromFile")) {
             char *fn = info->event.data.scalar.value;
             if(*fn != '/') {
-                char *suffix = strrchr(info->filename, '/');
-                if(suffix) {
-                    fn = alloca(suffix - info->filename + 1
-                        + info->event.data.scalar.length + 1);
-                    strncpy(fn, info->filename, suffix - info->filename + 1);
-                    strcpy(fn + (suffix - info->filename + 1),
-                        info->event.data.scalar.value);
-                }
+                fn = alloca(info->current_file->basedir_len
+                    + info->event.data.scalar.length + 1);
+                strcpy(fn, info->current_file->basedir);
+                strcpy(fn + info->current_file->basedir_len,
+                    info->event.data.scalar.value);
             }
             COYAML_DEBUG("Opening ``%s'' at ``%s''",
-                fn, info->filename);
+                fn, info->current_file->basedir);
             int file = open(fn, O_RDONLY);
             VALUE_ERROR(file >= 0, "Can't open file ``%s''", fn);
             struct stat finfo;

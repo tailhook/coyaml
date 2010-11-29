@@ -38,6 +38,7 @@ static coyaml_variable_t *new_variable(coyaml_context_t *ctx, char *name) {
     var->name = ((char *)var) + sizeof(coyaml_variable_t);
     var->name_len = strlen(name);
     memcpy(var->name, name, var->name_len);
+    var->name[var->name_len] = 0;
     return var;
 }
 

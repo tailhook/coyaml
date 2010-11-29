@@ -32,10 +32,7 @@ SimpleHTTPServer:
   zmq-forward: !zmq.Push
     - !zmq.Bind "tcp://127.0.0.1:123"
   status-socket: !zmq.Bind tcp://127.0.0.1:1234
-  directory-indexes:
-    - index
-    - index.html
-    - index.php
+  directory-indexes: !Include dirindex.yaml
   responses:
     default:
         code: 200
