@@ -101,12 +101,12 @@ def build(bld):
             bld(rule=rule.format('tinytest', 'tinyexample'),
                 always=True)
             bld(rule='./default/compr -c ../examples/compexample.yaml'
-                ' --config-var clivar=CLI -C -P > /tmp/compr;'
-                ' diff -u /tmp/compr ../examples/compexample.out',
+                ' --config-var clivar=CLI -C -P > /tmp/compr1;'
+                ' diff -u /tmp/compr1 ../examples/compexample.out',
                 always=True)
             bld(rule='./default/compr -c ../examples/compexample.yaml'
-                ' -Dclivar=CLI > /tmp/compr;'
-                ' diff -u /tmp/compr ../examples/compr.out',
+                ' -Dclivar=CLI > /tmp/compr2;'
+                ' diff -u /tmp/compr2 ../examples/compr.out',
                 always=True)
             bld(rule=rule.format('recursive', 'recexample'),
                 always=True)

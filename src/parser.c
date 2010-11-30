@@ -88,6 +88,27 @@ static struct unit_s {
 
 static char zero[sizeof(yaml_event_t)] = {0}; // compiler should make this zero
 
+static int coyaml_next(coyaml_parseinfo_t *info);
+
+static int coyaml_skip(coyaml_parseinfo_t *info) {
+    int level = 0;
+    do {
+        CHECK(coyaml_next(info));
+        switch(info->event.type) {
+            case YAML_MAPPING_START_EVENT:
+            case YAML_SEQUENCE_START_EVENT:
+                ++ level;
+                break;
+            case YAML_MAPPING_END_EVENT:
+            case YAML_SEQUENCE_END_EVENT:
+                -- level;
+                break;
+        }
+    } while(level);
+    return 0;
+}
+
+
 static coyaml_anchor_t *find_anchor(coyaml_parseinfo_t *info, char *name) {
     for(coyaml_anchor_t *a = info->anchor_first; a; a = a->next) {
         if(!strcmp(name, a->name)) {
@@ -146,51 +167,38 @@ static coyaml_stack_t *open_file(coyaml_parseinfo_t *info, char *filename) {
     return res;
 }
 
-static int coyaml_next(coyaml_parseinfo_t *info) {
-    // Temporarily without aliases
-    if(info->anchor_pos >= 0) {
-        memcpy(&info->event, &info->anchor_unpacking->events[info->anchor_pos],
-            sizeof(info->event));
-        switch(info->event.type) {
-            case YAML_ALIAS_EVENT:
-                SYNTAX_ERROR2("Nested aliases not supported");
-                break;
-            case YAML_MAPPING_START_EVENT:
-            case YAML_SEQUENCE_START_EVENT:
-                if(info->anchor_level >= 0) {
-                    ++ info->anchor_level;
-                }
-            case YAML_SCALAR_EVENT:
-                break;
-            case YAML_MAPPING_END_EVENT:
-            case YAML_SEQUENCE_END_EVENT:
-                if(info->anchor_level >= 0) {
-                    -- info->anchor_level;
-                }
-                break;
-            default:
-                COYAML_ASSERT(info->event.type);
-                break;
-        }
-        if(info->anchor_level == 0) {
-            info->anchor_pos = -1;
-            info->anchor_unpacking = NULL;
-        } else {
-            info->anchor_pos += 1;
-        }
+static int unpack_anchor(coyaml_parseinfo_t *info) {
+    memcpy(&info->event, &info->anchor_unpacking->events[info->anchor_pos],
+        sizeof(info->event));
+    if(info->event.type == YAML_NO_EVENT) {
+        info->anchor_pos = -1;
+        info->anchor_unpacking = NULL;
+        return coyaml_next(info);
+    } else {
+        info->anchor_pos += 1;
         return 0;
     }
-    if(info->event.type && info->anchor_level < 0) {
+}
+
+static int plain_next(coyaml_parseinfo_t *info) {
+    if(info->event.type && !info->anchor_unpacking && info->anchor_level < 0) {
         yaml_event_delete(&info->event);
     }
-    if(info->anchor_level == 0) {
-        info->anchor_level = -1;
-    }
     COYAML_ASSERT(yaml_parser_parse(&info->current_file->parser, &info->event));
-    if(info->event.data.scalar.anchor && info->anchor_level >= 0) {
-        SYNTAX_ERROR2("Nested anchors are not supported");
+    if(info->event.type == YAML_SCALAR_EVENT) {
+        COYAML_DEBUG("Low-level event %s[%d] (%.*s)",
+            yaml_event_names[info->event.type], info->event.type,
+            info->event.data.scalar.length,
+            info->event.data.scalar.value);
+    } else {
+        COYAML_DEBUG("Low-level event %s[%d]",
+            yaml_event_names[info->event.type],
+            info->event.type);
     }
-    // Include support
+}
+
+static int include_next(coyaml_parseinfo_t *info) {
+    CHECK(plain_next(info));
     switch(info->event.type) {
         case YAML_SCALAR_EVENT:
             if(info->event.data.scalar.tag
@@ -210,49 +218,64 @@ static int coyaml_next(coyaml_parseinfo_t *info) {
                 info->current_file->next = cur;
                 info->current_file = cur;
                 
-                yaml_event_delete(&info->event);
-                COYAML_ASSERT(yaml_parser_parse(&cur->parser, &info->event));
+                CHECK(plain_next(info));
                 SYNTAX_ERROR(info->event.type == YAML_STREAM_START_EVENT);
-                yaml_event_delete(&info->event);
-                COYAML_ASSERT(yaml_parser_parse(&cur->parser, &info->event));
+                CHECK(plain_next(info));
                 SYNTAX_ERROR(info->event.type == YAML_DOCUMENT_START_EVENT);
-                yaml_event_delete(&info->event);
-                COYAML_ASSERT(yaml_parser_parse(&cur->parser, &info->event));
+                return coyaml_next(info);
             }
             break;
         case YAML_DOCUMENT_END_EVENT:
             if(info->current_file != info->root_file) {
                 coyaml_stack_t *cur = info->current_file;
-                yaml_event_delete(&info->event);
-                COYAML_ASSERT(yaml_parser_parse(&cur->parser, &info->event));
+                CHECK(plain_next(info));
                 SYNTAX_ERROR(info->event.type == YAML_STREAM_END_EVENT);
-                yaml_event_delete(&info->event);
                 yaml_parser_delete(&cur->parser);
                 fclose(cur->file);
                 info->current_file = cur->prev;
                 info->current_file->next = NULL;
                 free(cur);
-                COYAML_ASSERT(yaml_parser_parse(&info->current_file->parser,
-                    &info->event));
+                return coyaml_next(info);
             }
             break;
     }
-    // Anchor support
-    switch(info->event.type) {
-        case YAML_ALIAS_EVENT: {
-            coyaml_anchor_t *anch = find_anchor(info,
+    return 0;
+}
+
+static int alias_next(coyaml_parseinfo_t *info) {
+    if(info->anchor_unpacking) {
+        return unpack_anchor(info);
+    }
+    CHECK(include_next(info));
+    if(info->event.type == YAML_ALIAS_EVENT) {
+        coyaml_anchor_t *anch = find_anchor(info,
+            info->event.data.alias.anchor);
+        if(anch) {
+            info->anchor_pos = 0;
+            info->anchor_unpacking = anch;
+            // Sorry, we don't delete event while unpacking alias
+            yaml_event_delete(&info->event);
+            return coyaml_next(info);
+        } else {
+            SYNTAX_ERROR2("Anchor %s not found",
                 info->event.data.alias.anchor);
-            if(anch) {
-                info->anchor_pos = 0;
-                info->anchor_level = 0;
-                info->anchor_unpacking = anch;
-                yaml_event_delete(&info->event);
-                return coyaml_next(info);
-            } else {
-                SYNTAX_ERROR2("Anchor %s not found",
-                    info->event.data.alias.anchor);
-            }
-            } break;
+        }
+    }
+    return 0;
+}
+
+static int anchor_next(coyaml_parseinfo_t *info) {
+    CHECK(alias_next(info));
+    if(info->anchor_level == 0) {
+        info->anchor_level = -1;
+    }
+    if(info->event.data.scalar.anchor && info->anchor_level >= 0) {
+        SYNTAX_ERROR2("Nested anchors are not supported");
+    }
+    if(info->anchor_unpacking) {
+        return 0; // No anchors while unpacking alias
+    }
+    switch(info->event.type) {
         case YAML_MAPPING_START_EVENT:
         case YAML_SEQUENCE_START_EVENT:
             if(info->anchor_level >= 0 || info->event.data.scalar.anchor) {
@@ -301,33 +324,138 @@ static int coyaml_next(coyaml_parseinfo_t *info) {
             cur->next = NULL;
         }
     }
+    return 0;
+}
+
+static int find_mapping_key(coyaml_mapkey_t *root, char *name,
+    coyaml_mapkey_t **node) {
+    coyaml_mapkey_t *parent;
+    coyaml_mapkey_t *cur = root;
+    while(TRUE) {
+        int res = strcmp(name, cur->name);
+        if(!res) {
+            *node = cur;
+            return 0;
+        }
+        if(res < 0) {
+            parent = cur;
+            cur = cur->left;
+            if(!cur) {
+                *node = parent;
+                return -1;
+            }
+        } else { // res > 0
+            parent = cur;
+            cur = cur->right;
+            if(!cur) {
+                *node = parent;
+                return 1;
+            }
+        }
+    }
+    abort();
+}
+
+static coyaml_mapkey_t *make_mapping_key(coyaml_parseinfo_t *info) {
+    coyaml_mapkey_t *res = obstack_alloc(&info->mappieces,
+        sizeof(coyaml_mapkey_t)+info->event.data.scalar.length+1);
+    res->left = NULL;
+    res->right = NULL;
+    memcpy((char *)res + sizeof(coyaml_mapkey_t), 
+        info->event.data.scalar.value, info->event.data.scalar.length + 1);
+    return res;
+}
+
+static int mapping_next(coyaml_parseinfo_t *info) {
+    CHECK(anchor_next(info));
+    coyaml_mapmerge_t *mapping = info->top_map;
+    if(!mapping && info->event.type != YAML_MAPPING_START_EVENT) return 0;
+    
+    switch(info->event.type) {
+        case YAML_SCALAR_EVENT:
+            COYAML_DEBUG("-----> state %d level %d", mapping->state, mapping->level);
+            if(!mapping->state && !mapping->level) {
+                coyaml_mapkey_t *key = mapping->keys;
+                COYAML_DEBUG("Working on ``%s''", info->event.data.scalar.value);
+                if(!key) {
+                    info->top_map->keys = make_mapping_key(info);
+                } else {
+                    int rel = find_mapping_key(key,
+                        info->event.data.scalar.value, &key);
+                    if(rel == 0) {
+                        COYAML_DEBUG("Skipping duplicate ``%.*s''",
+                            info->event.data.scalar.length,
+                            info->event.data.scalar.value);
+                        CHECK(coyaml_skip(info));
+                        mapping->state = 0;
+                        return coyaml_next(info);
+                    } else {
+                        if(rel == 1) {
+                            key->right = make_mapping_key(info);
+                        } else { // rel == -1
+                            key->left = make_mapping_key(info);
+                        }
+                    }
+                }
+                mapping->state = 1;
+            } else if(!mapping->level) {
+                mapping->state = 0;
+            }
+            break;
+        case YAML_SEQUENCE_START_EVENT:
+            mapping->level += 1;
+            break;
+        case YAML_SEQUENCE_END_EVENT:
+            mapping->level -= 1;
+            if(!mapping->level) {
+                mapping->state = !mapping->state;
+            }
+            break;
+        case YAML_MAPPING_START_EVENT:
+            COYAML_DEBUG("-----> STARTING state %d", mapping && mapping->state);
+            if(!mapping || mapping->state == 1) {
+                mapping = obstack_alloc(&info->mappieces,
+                    sizeof(coyaml_mapmerge_t));
+                mapping->prev = info->top_map;
+                mapping->keys = NULL;
+                mapping->state = 0;
+                mapping->level = 0;
+                info->top_map = mapping;
+            } else {
+                mapping->level += 1;
+            }
+            break;
+        case YAML_MAPPING_END_EVENT:
+            if(!mapping->state && !mapping->level) {
+                info->top_map = mapping->prev;
+                obstack_free(&info->mappieces, mapping);
+                if(info->top_map) {
+                    info->top_map->state = 0;
+                }
+            } else {
+                mapping->level -= 1;
+                if(!mapping->level) {
+                    mapping->state = !mapping->state;
+                }
+            }
+            break;
+    }
+    COYAML_DEBUG("-----> leaving state %d level %d", mapping->state, mapping->level);
+    return 0;
+}
+
+static int coyaml_next(coyaml_parseinfo_t *info) {
+    CHECK(mapping_next(info));
     if(info->event.type == YAML_SCALAR_EVENT) {
-        COYAML_DEBUG("Event %s[%d] (%s)",
+        COYAML_DEBUG("Event %s[%d] (%.*s)",
             yaml_event_names[info->event.type], info->event.type,
+            info->event.data.scalar.length,
             info->event.data.scalar.value);
     } else {
         COYAML_DEBUG("Event %s[%d]",
             yaml_event_names[info->event.type],
             info->event.type);
     }
-    return 0;
-}
-
-static int coyaml_skip(coyaml_parseinfo_t *info) {
-    int level = 0;
-    do {
-        CHECK(coyaml_next(info));
-        switch(info->event.type) {
-            case YAML_MAPPING_START_EVENT:
-            case YAML_SEQUENCE_START_EVENT:
-                ++ level;
-                break;
-            case YAML_MAPPING_END_EVENT:
-            case YAML_SEQUENCE_END_EVENT:
-                -- level;
-                break;
-        }
-    } while(level);
     return 0;
 }
 
@@ -357,13 +485,15 @@ int coyaml_readfile(coyaml_context_t *ctx) {
     sinfo.parse_vars = ctx->parse_vars;
     sinfo.head = ctx->target;
     sinfo.target = ctx->target;
-    obstack_init(&sinfo.anchors);
     sinfo.anchor_level = -1;
     sinfo.anchor_pos = -1;
     sinfo.anchor_unpacking = NULL;
     sinfo.anchor_first = NULL;
     sinfo.anchor_last = NULL;
+    sinfo.top_map = NULL;
     sinfo.event.type = YAML_NO_EVENT;
+    obstack_init(&sinfo.anchors);
+    obstack_init(&sinfo.mappieces);
 
     coyaml_parseinfo_t *info = &sinfo;
     
@@ -377,6 +507,7 @@ int coyaml_readfile(coyaml_context_t *ctx) {
         }
     }
     obstack_free(&sinfo.anchors, NULL);
+    obstack_free(&sinfo.mappieces, NULL);
     
     for(coyaml_stack_t *t = info->current_file, *n; t; t = n) {
         yaml_parser_delete(&t->parser);

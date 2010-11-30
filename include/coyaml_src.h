@@ -44,6 +44,10 @@ typedef struct coyaml_parseinfo_s {
     coyaml_anchor_t *anchor_unpacking;
     int anchor_pos;
     // End anchors
+    // Merge structures
+    struct obstack mappieces;
+    struct coyaml_mapmerge_s *top_map;
+    // End merge
     struct coyaml_stack_s *root_file;
     struct coyaml_stack_s *current_file;
 } coyaml_parseinfo_t;
