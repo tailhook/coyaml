@@ -1,11 +1,11 @@
 _suffix: &var _var_
-#_vars1: &vars1
-#  X-No-Var: hello$something
-#  X-Uservar: hello $hello
-#_vars2: &vars2
-#  X-Version: $coyaml_version
-#  X-Integer: $intvar bytes
-#  X-Cli: value from $clivar 
+_vars1: &vars1
+  X-No-Var: hello$something
+  X-Uservar: hello $hello
+_vars2: &vars2
+  X-Version: $coyaml_version
+  X-Integer: $intvar bytes
+  X-Cli: value from $clivar 
 
 SimpleHTTPServer:
   log-level: 3
@@ -23,17 +23,11 @@ SimpleHTTPServer:
     X-Var: $var
     X-Var: bla
     
-    X-Subst: hello$var
-    X-Subst2: hello${var}world
-    X-No-Var: hello$something
-    X-Uservar: hello $hello
-    X-Version: $coyaml_version
-    X-Integer: $intvar bytes
-    X-Cli: value from $clivar
-#    <<:
-#      X-Subst: hello$var
-#      X-Subst2: hello${var}world
-#      <<: [*vars1, *vars2]
+    <<:
+      X-Subst: hello$var
+      X-Subst2: hello${var}world
+      <<: *vars1
+      <<: *vars2
 
   http-forward:
     - host: 192.168.0.1
@@ -62,3 +56,4 @@ SimpleHTTPServer:
             Content-Type: text/html
         body: Error 
     internal-error: *error
+    

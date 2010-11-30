@@ -91,6 +91,7 @@ static char zero[sizeof(yaml_event_t)] = {0}; // compiler should make this zero
 static int coyaml_next(coyaml_parseinfo_t *info);
 
 static int coyaml_skip(coyaml_parseinfo_t *info) {
+    COYAML_DEBUG("Skipping subtree");
     int level = 0;
     do {
         CHECK(coyaml_next(info));
@@ -105,6 +106,7 @@ static int coyaml_skip(coyaml_parseinfo_t *info) {
                 break;
         }
     } while(level);
+    COYAML_DEBUG("End of skipping");
     return 0;
 }
 
@@ -369,6 +371,39 @@ static coyaml_mapkey_t *make_mapping_key(coyaml_parseinfo_t *info) {
 static int mapping_next(coyaml_parseinfo_t *info) {
     CHECK(anchor_next(info));
     coyaml_mapmerge_t *mapping = info->top_map;
+    if(!mapping) return 0;
+    switch(info->event.type) {
+        case YAML_SCALAR_EVENT:
+            if(!mapping->state && !strcmp(info->event.data.scalar.value,"<<")) {
+                CHECK(anchor_next(info));
+                switch(info->event.type) {
+                    case YAML_MAPPING_START_EVENT:
+                        mapping->mergelevel += 1;
+                        return mapping_next(info);
+                    case YAML_SEQUENCE_START_EVENT:
+                        SYNTAX_ERROR2("Not implemented");
+                        break;
+                    default:
+                        SYNTAX_ERROR2("Can merge only mapping"
+                            " or sequence of mappings");
+                        break;
+                }
+            }
+            break;
+        case YAML_MAPPING_END_EVENT:
+            if(mapping->mergelevel) {
+                COYAML_DEBUG("ENDMERGE");
+                mapping->mergelevel -= 1;
+                return mapping_next(info);
+            }
+            break;
+    }
+    return 0;
+}
+
+static int duplicate_next(coyaml_parseinfo_t *info) {
+    CHECK(mapping_next(info));
+    coyaml_mapmerge_t *mapping = info->top_map;
     if(!mapping && info->event.type != YAML_MAPPING_START_EVENT) return 0;
     
     switch(info->event.type) {
@@ -420,6 +455,7 @@ static int mapping_next(coyaml_parseinfo_t *info) {
                 mapping->keys = NULL;
                 mapping->state = 0;
                 mapping->level = 0;
+                mapping->mergelevel = 0;
                 info->top_map = mapping;
             } else {
                 mapping->level += 1;
@@ -445,7 +481,7 @@ static int mapping_next(coyaml_parseinfo_t *info) {
 }
 
 static int coyaml_next(coyaml_parseinfo_t *info) {
-    CHECK(mapping_next(info));
+    CHECK(duplicate_next(info));
     if(info->event.type == YAML_SCALAR_EVENT) {
         COYAML_DEBUG("Event %s[%d] (%.*s)",
             yaml_event_names[info->event.type], info->event.type,
@@ -527,7 +563,8 @@ int coyaml_group(coyaml_parseinfo_t *info, coyaml_group_t *def, void *target) {
     while(info->event.type == YAML_SCALAR_EVENT) {
         if(info->event.data.scalar.value[0] == '_') {
             // Hidden keys, user's can use that for their own reusable anchors
-            coyaml_skip(info);
+            CHECK(coyaml_skip(info));
+            CHECK(coyaml_next(info));
             continue;
         }
         coyaml_transition_t *tran;
