@@ -381,7 +381,6 @@ static int mapping_next(coyaml_parseinfo_t *info) {
                         mapping->mergelevel += 1;
                         return mapping_next(info);
                     case YAML_SEQUENCE_START_EVENT:
-                        COYAML_DEBUG("Mergelists s %d", mapping->mergelists);
                         mapping->mergelists = TRUE;
                         CHECK(anchor_next(info));
                         VALUE_ERROR(info->event.type==YAML_MAPPING_START_EVENT,
@@ -396,7 +395,6 @@ static int mapping_next(coyaml_parseinfo_t *info) {
             }
             break;
         case YAML_MAPPING_END_EVENT:
-            COYAML_DEBUG("MERGE_MAPPING %d %d", mapping->mergelevel, mapping->mergelists);
             if(mapping->mergelevel) {
                 mapping->mergelevel -= 1;
                 if(mapping->mergelists) {
@@ -409,7 +407,7 @@ static int mapping_next(coyaml_parseinfo_t *info) {
                             mapping->mergelists = FALSE;
                             return mapping_next(info);
                         default:
-                            SYNTAX_ERROR2("Can only merge mapping %s", yaml_event_names[info->event.type]);
+                            SYNTAX_ERROR2("Can only merge mapping");
                             break;
                     }
                 }
@@ -427,10 +425,8 @@ static int duplicate_next(coyaml_parseinfo_t *info) {
     
     switch(info->event.type) {
         case YAML_SCALAR_EVENT:
-            COYAML_DEBUG("-----> state %d level %d", mapping->state, mapping->level);
             if(!mapping->state && !mapping->level) {
                 coyaml_mapkey_t *key = mapping->keys;
-                COYAML_DEBUG("Working on ``%s''", info->event.data.scalar.value);
                 if(!key) {
                     info->top_map->keys = make_mapping_key(info);
                 } else {
@@ -466,7 +462,6 @@ static int duplicate_next(coyaml_parseinfo_t *info) {
             }
             break;
         case YAML_MAPPING_START_EVENT:
-            COYAML_DEBUG("-----> STARTING state %d", mapping && mapping->state);
             if(!mapping || mapping->state == 1) {
                 mapping = obstack_alloc(&info->mappieces,
                     sizeof(coyaml_mapmerge_t));
@@ -496,7 +491,6 @@ static int duplicate_next(coyaml_parseinfo_t *info) {
             }
             break;
     }
-    COYAML_DEBUG("-----> leaving state %d level %d", mapping->state, mapping->level);
     return 0;
 }
 
