@@ -25,6 +25,7 @@ typedef struct coyaml_mapmerge_s {
     int state;
     int level;
     int mergelevel;
+    int mergelists;
 } coyaml_mapmerge_t;
 
 #endif //_H_PARSER

@@ -26,8 +26,8 @@ SimpleHTTPServer:
     <<:
       X-Subst: hello$var
       X-Subst2: hello${var}world
-      <<: *vars1
-      <<: *vars2
+      <<: [*vars1, *vars2]
+      
 
   http-forward:
     - host: 192.168.0.1

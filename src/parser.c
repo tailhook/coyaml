@@ -257,7 +257,7 @@ static int alias_next(coyaml_parseinfo_t *info) {
             info->anchor_unpacking = anch;
             // Sorry, we don't delete event while unpacking alias
             yaml_event_delete(&info->event);
-            return coyaml_next(info);
+            return alias_next(info);
         } else {
             SYNTAX_ERROR2("Anchor %s not found",
                 info->event.data.alias.anchor);
@@ -381,8 +381,13 @@ static int mapping_next(coyaml_parseinfo_t *info) {
                         mapping->mergelevel += 1;
                         return mapping_next(info);
                     case YAML_SEQUENCE_START_EVENT:
-                        SYNTAX_ERROR2("Not implemented");
-                        break;
+                        COYAML_DEBUG("Mergelists s %d", mapping->mergelists);
+                        mapping->mergelists = TRUE;
+                        CHECK(anchor_next(info));
+                        VALUE_ERROR(info->event.type==YAML_MAPPING_START_EVENT,
+                            "Can only merge mappings %d", info->event.type);
+                        mapping->mergelevel += 1;
+                        return mapping_next(info);
                     default:
                         SYNTAX_ERROR2("Can merge only mapping"
                             " or sequence of mappings");
@@ -391,9 +396,23 @@ static int mapping_next(coyaml_parseinfo_t *info) {
             }
             break;
         case YAML_MAPPING_END_EVENT:
+            COYAML_DEBUG("MERGE_MAPPING %d %d", mapping->mergelevel, mapping->mergelists);
             if(mapping->mergelevel) {
-                COYAML_DEBUG("ENDMERGE");
                 mapping->mergelevel -= 1;
+                if(mapping->mergelists) {
+                    CHECK(anchor_next(info));
+                    switch(info->event.type) {
+                        case YAML_MAPPING_START_EVENT:
+                            mapping->mergelevel += 1;
+                            return mapping_next(info);
+                        case YAML_SEQUENCE_END_EVENT:
+                            mapping->mergelists = FALSE;
+                            return mapping_next(info);
+                        default:
+                            SYNTAX_ERROR2("Can only merge mapping %s", yaml_event_names[info->event.type]);
+                            break;
+                    }
+                }
                 return mapping_next(info);
             }
             break;
@@ -456,6 +475,7 @@ static int duplicate_next(coyaml_parseinfo_t *info) {
                 mapping->state = 0;
                 mapping->level = 0;
                 mapping->mergelevel = 0;
+                mapping->mergelists = 0;
                 info->top_map = mapping;
             } else {
                 mapping->level += 1;
