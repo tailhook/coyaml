@@ -785,7 +785,7 @@ int coyaml_usertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *targ
             info->event.data.scalar.value, def, target));
         CHECK(coyaml_next(info));
     } else if(info->event.type == YAML_SEQUENCE_START_EVENT) {
-        coyaml_parse_tag(info, def, target);
+        CHECK(coyaml_parse_tag(info, def, target));
         for(coyaml_transition_t *tr = def->group->transitions; tr->symbol; ++tr) {
             COYAML_DEBUG("Symbol ``%s''", tr->symbol);
             if(!strcmp(tr->symbol, "value")) {
@@ -881,7 +881,7 @@ int coyaml_parse_tag(coyaml_parseinfo_t *info,
     char *tag = info ? info->event.data.scalar.tag : NULL;
     if(!tag || !*tag) {
         if(prop->tags) {
-            SYNTAX_ERROR(prop->default_tag == -1);
+            SYNTAX_ERROR(prop->default_tag != -1);
             *target = prop->default_tag;
         }
     } else {

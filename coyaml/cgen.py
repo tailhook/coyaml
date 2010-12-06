@@ -441,8 +441,10 @@ class GenCCode(object):
                         for k, v in utype.tags.items() ]
                         + [ StrValue(tagname=NULL, tagvalue=Int(0)) ]),
                         static=True, array=(None,)))
+                    default_tag = getattr(utype, 'defaulttag', -1)
                 else:
                     tagvar = 'NULL'
+                    default_tag = -1
                 uzone(Func('int', defname, [ Param(typname+' *', 'cfg') ]))
                 conv_fun = getattr(utype, 'convert', None)
                 if conv_fun is not None and conv_fun not in builtin_conversions:
@@ -459,6 +461,7 @@ class GenCCode(object):
                         group=Ref(Subscript(Ident(self.prefix+'_group_vars'),
                             Int(len(self.states['group'].content)-1))),
                         tags=Ident(tagvar),
+                        default_tag=Int(default_tag),
                         scalar_fun=Coerce('coyaml_convert_fun', conv_fun)
                             if conv_fun else NULL,
                     ), static=True))
