@@ -36,6 +36,10 @@ def string(val):
 def typename(typ):
     if isinstance(typ, load.Struct):
         return typ.type
+    elif isinstance(typ, load.CType):
+        return typ.type
+    elif isinstance(typ, load.CStruct):
+        return 'struct ' + typ.structname
     return _typenames[typ.__class__]
 
 def cbool(val):

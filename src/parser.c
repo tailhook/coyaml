@@ -636,6 +636,32 @@ int coyaml_int(coyaml_parseinfo_t *info, coyaml_int_t *def, void *target) {
     return 0;
 }
 
+int coyaml_uint(coyaml_parseinfo_t *info, coyaml_uint_t *def, void *target) {
+    COYAML_DEBUG("Entering Int");
+    SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
+    unsigned char *end;
+    unsigned long val = strtol(info->event.data.scalar.value, (char **)&end, 0);
+    if(*end) {
+        for(struct unit_s *unit = units; unit->unit; ++unit) {
+            if(!strcmp(end, unit->unit)) {
+                val *= unit->value;
+                end += strlen(unit->unit);
+                break;
+            }
+        }
+    }
+    SYNTAX_ERROR(end == info->event.data.scalar.value
+        + info->event.data.scalar.length);
+    VALUE_ERROR(!(def->bitmask&2) || val <= def->max,
+        "Value must be less than or equal to %d", def->max);
+    VALUE_ERROR(!(def->bitmask&1) || val >= def->min,
+        "Value must be greater than or equal to %d", def->min);
+    *(long *)(((char *)target)+def->baseoffset) = val;
+    CHECK(coyaml_next(info));
+    COYAML_DEBUG("Leaving UInt");
+    return 0;
+}
+
 int coyaml_file(coyaml_parseinfo_t *info, coyaml_file_t *def, void *target) {
     COYAML_DEBUG("Entering File");
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);

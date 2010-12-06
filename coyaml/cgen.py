@@ -25,6 +25,8 @@ placeholders = {
     load.File: '%s',
     load.Dir: '%s',
     load.VoidPtr: '0x%x',
+    load.CType: '',
+    load.CStruct: '',
     }
 
 cfgtoast = {
@@ -34,6 +36,8 @@ cfgtoast = {
     load.File: String,
     load.Dir: String,
     load.VoidPtr: lambda val: NULL,
+    load.CStruct: lambda val: NULL,
+    load.CType: lambda val: NULL,
     }
 
 def mem2dotname(mem):

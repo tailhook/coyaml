@@ -4,6 +4,9 @@ __meta__:
   default-config: /etc/simplehttp.yaml
   description: >
     This is a non-working server to test some configuration file facilities
+    
+  c_std_include:
+    - 'sys/time.h'
 
 __types__:
 
@@ -59,7 +62,7 @@ __types__:
       </html>
 
 SimpleHTTPServer:
-  log-level: !Int
+  log-level: !UInt
     min: 1
     max: 7
     default: 5
@@ -115,6 +118,8 @@ SimpleHTTPServer:
     =: zmqaddr_list
   _hidden-field: !Int 5
   _hidden-ptr: !_VoidPtr ~
+  _hidden-struct: !CStruct timeval
+  _hidden-type: !CType size_t
   responses:
     default: !Struct
       =: response

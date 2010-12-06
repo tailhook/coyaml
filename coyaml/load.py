@@ -120,6 +120,36 @@ class Convert(yaml.YAMLObject):
 class VoidPtr(YamlyType):
     yaml_tag = '!_VoidPtr'
     yaml_loader = ConfigLoader
+    
+class CStruct(YamlyType):
+    yaml_tag = '!CStruct'
+    yaml_loader = ConfigLoader
+    
+    def __init__(self, type):
+        self.structname = type
+    
+    @classmethod
+    def from_yaml(cls, Loader, node):
+        if isinstance(node, yaml.ScalarNode):
+            self = cls(type=Loader.construct_scalar(node))
+        else:
+            self = cls(**Loader.construct_mapping(node))
+        return self
+    
+class CType(YamlyType):
+    yaml_tag = '!CType'
+    yaml_loader = ConfigLoader
+    
+    def __init__(self, type):
+        self.type = type
+    
+    @classmethod
+    def from_yaml(cls, Loader, node):
+        if isinstance(node, yaml.ScalarNode):
+            self = cls(type=Loader.construct_scalar(node))
+        else:
+            self = cls(**Loader.construct_mapping(node))
+        return self
 
 from .core import Config, Usertype # sorry, circular dependency
 from .util import varname

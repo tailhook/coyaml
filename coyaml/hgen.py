@@ -19,6 +19,10 @@ class GenHCode(object):
         ast(Ifndef('_H_'+self.cfg.targetname.upper()))
         ast(Define('_H_'+self.cfg.targetname.upper()))
         ast(StdInclude('coyaml_hdr.h'))
+        for i in getattr(self.cfg.meta, 'c_std_include', []):
+            ast(StdInclude(i))
+        for i in getattr(self.cfg.meta, 'c_include', []):
+            ast(Include(i))
         ast(VSpace())
         for sname, struct in self.cfg.types.items():
             if hasattr(struct, 'tags'):

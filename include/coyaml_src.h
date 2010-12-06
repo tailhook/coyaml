@@ -187,7 +187,7 @@ int coyaml_int_incr_o(char *value, coyaml_int_t *prop, void *target);
 int coyaml_int_decr_o(char *value, coyaml_int_t *prop, void *target);
 int coyaml_uint_o(char *value, coyaml_uint_t *prop, void *target);
 int coyaml_uint_incr_o(char *value, coyaml_uint_t *prop, void *target);
-int coyaml_uint_incr_o(char *value, coyaml_uint_t *prop, void *target);
+int coyaml_uint_decr_o(char *value, coyaml_uint_t *prop, void *target);
 int coyaml_bool_o(char *value, coyaml_bool_t *prop, void *target);
 int coyaml_float_o(char *value, coyaml_float_t *prop, void *target);
 int coyaml_file_o(char *value, coyaml_file_t *prop, void *target);
