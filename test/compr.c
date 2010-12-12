@@ -95,6 +95,7 @@ int main(int argc, char **argv) {
     coyaml_readfile_or_exit(ctx);
     coyaml_cli_parse_or_exit(ctx, argc, argv);
     coyaml_context_free(ctx);
+    printf("TAG: %d\n", config.SimpleHTTPServer.intvalue.tag);
     CFG_STRING_LOOP(item, config.SimpleHTTPServer.directory_indexes) {
         printf("INDEX: \"%s\"\n", item->value);
     }

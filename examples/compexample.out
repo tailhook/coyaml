@@ -57,6 +57,8 @@ SimpleHTTPServer:
     value:
       -
         value: tcp://127.0.0.1:123
+  intvalue:
+    value: 2
   responses:
     default:
       status: OK

@@ -783,7 +783,9 @@ int coyaml_usertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *targ
         SYNTAX_ERROR(def->scalar_fun);
         CHECK(def->scalar_fun(info,
             info->event.data.scalar.value, def, target));
-        CHECK(coyaml_next(info));
+        if(def->scalar_fun != coyaml_tagged_scalar) {
+            CHECK(coyaml_next(info));
+        }
     } else if(info->event.type == YAML_SEQUENCE_START_EVENT) {
         CHECK(coyaml_parse_tag(info, def, target));
         for(coyaml_transition_t *tr = def->group->transitions; tr->symbol; ++tr) {
@@ -903,7 +905,13 @@ int coyaml_parse_tag(coyaml_parseinfo_t *info,
 int coyaml_tagged_scalar(coyaml_parseinfo_t *info, char *value,
     struct coyaml_usertype_s *prop, void *target) {
     COYAML_DEBUG("Entering Tagged Scalar");
-    CHECK(coyaml_parse_tag(info, prop, (int *)target));
+    if(info) {
+        CHECK(coyaml_parse_tag(info, prop, (int *)target));
+        if(info->event.data.scalar.tag) {
+            free(info->event.data.scalar.tag);
+            info->event.data.scalar.tag = NULL;
+        }
+    }
     coyaml_group_t *gr = prop->group;
     COYAML_ASSERT(gr);
     coyaml_transition_t *tr = gr->transitions;
@@ -911,18 +919,15 @@ int coyaml_tagged_scalar(coyaml_parseinfo_t *info, char *value,
     coyaml_string_t *str = NULL;
     for(;tr->symbol; ++tr) {
         if(!strcmp(tr->symbol, "value")) {
-            COYAML_ASSERT(tr->callback == (coyaml_state_fun)coyaml_string);
+            COYAML_ASSERT(tr->callback == (coyaml_state_fun)coyaml_string
+                || info);
             str = tr->prop;
             break;
         }
     }
     COYAML_ASSERT(str);
     if(info) {
-        *(char **)(((char *)target)+str->baseoffset) = obstack_copy0(
-            &info->head->pieces,
-            info->event.data.scalar.value, info->event.data.scalar.length);
-        *(int *)(((char *)target)+str->baseoffset+sizeof(char*)) =
-            info->event.data.scalar.length;
+        tr->callback(info, str, target);
     } else {
         *(char **)(((char *)target)+str->baseoffset) = value; //Dirty hack
         *(int *)(((char *)target)+str->baseoffset+sizeof(char*)) =

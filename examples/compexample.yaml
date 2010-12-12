@@ -41,6 +41,7 @@ SimpleHTTPServer:
     - !zmq.Bind "tcp://127.0.0.1:123"
   status-socket: !zmq.Bind tcp://127.0.0.1:1234
   directory-indexes: !Include dirindex.yaml
+  intvalue: !mbytes 2
   responses:
     default:
         code: 200

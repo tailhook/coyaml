@@ -42,6 +42,14 @@ __types__:
       zmq.Pub: 3
     __value__: !Array
         element: !Struct zmqaddr
+        
+  taggedint:
+    __tags__:
+      __default__: bytes
+      bytes: 0
+      kbytes: 1
+      mbytes: 2
+    __value__: !Int 1
 
   response:
     code: !Int
@@ -116,6 +124,7 @@ SimpleHTTPServer:
       Socket address to get status from by zmq protocol
   zmq-forward: !Struct
     =: zmqaddr_list
+  intvalue: !Struct taggedint
   _hidden-field: !Int 5
   _hidden-ptr: !_VoidPtr ~
   _hidden-struct: !CStruct timeval
