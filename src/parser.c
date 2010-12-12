@@ -582,9 +582,13 @@ int coyaml_group(coyaml_parseinfo_t *info, coyaml_group_t *def, void *target) {
             continue;
         }
         coyaml_transition_t *tran;
+        char *key = info->event.data.scalar.value;
+        if(!strcmp(key, "=")) {
+            key = "value";
+        }
         for(tran = def->transitions;
             tran && tran->symbol; ++tran) {
-            if(!strcmp(tran->symbol, info->event.data.scalar.value)) {
+            if(!strcmp(tran->symbol, key)) {
                 break;
             }
         }

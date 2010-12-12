@@ -42,6 +42,8 @@ SimpleHTTPServer:
   status-socket: !zmq.Bind tcp://127.0.0.1:1234
   directory-indexes: !Include dirindex.yaml
   intvalue: !mbytes 2
+  intvalue2:
+    =: !kbytes 123
   responses:
     default:
         code: 200
