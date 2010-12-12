@@ -95,7 +95,11 @@ int coyaml_cli_parse(coyaml_context_t *ctx, int argc, char **argv) {
             return -1;
         }
     }
-    optind = old_optind;
+    if(optind != argc && !ctx->cmdline->has_arguments) {
+        fprintf(stderr, ctx->cmdline->usage);
+        errno = ECOYAML_CLI_WRONG_OPTION;
+        return -1;
+    }
     if(do_print) {
         ctx->cmdline->print_callback(stdout, "", ctx->target);
     }

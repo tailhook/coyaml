@@ -38,6 +38,7 @@ typedef struct coyaml_cmdline_s {
     char *full_description;
     char *optstr;
     int *optidx;
+    bool has_arguments;
     struct option *options;
     struct coyaml_option_s *coyaml_options;
     coyaml_print_fun print_callback;

@@ -293,6 +293,9 @@ class GenCCode(object):
                 optidx=self.prefix+'_optidx',
                 usage=String(usage),
                 full_description=String(descr),
+                has_arguments=Ident('TRUE')
+                    if getattr(self.cfg.meta, 'has_arguments', False)
+                    else Ident('FALSE'),
                 options=self.prefix+'_getopt_ar',
                 coyaml_options=self.prefix+'_options',
                 print_callback=Coerce('coyaml_print_fun',
