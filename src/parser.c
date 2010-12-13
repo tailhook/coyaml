@@ -548,6 +548,11 @@ int coyaml_readfile(coyaml_context_t *ctx) {
     coyaml_parseinfo_t *info = &sinfo;
     
     sinfo.root_file = sinfo.current_file = open_file(info, ctx->root_filename);
+    if(!sinfo.root_file) {
+        obstack_free(&sinfo.anchors, NULL);
+        obstack_free(&sinfo.mappieces, NULL);
+        return -1;
+    }
 
     int result = coyaml_root(info, ctx->root_group, ctx->target);
 
@@ -567,7 +572,6 @@ int coyaml_readfile(coyaml_context_t *ctx) {
     }
     COYAML_DEBUG("Done %s", result ? "ERROR" : "OK");
     return result;
-
 }
 
 int coyaml_group(coyaml_parseinfo_t *info, coyaml_group_t *def, void *target) {
@@ -637,6 +641,32 @@ int coyaml_int(coyaml_parseinfo_t *info, coyaml_int_t *def, void *target) {
     *(long *)(((char *)target)+def->baseoffset) = val;
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving Int");
+    return 0;
+}
+
+int coyaml_bool(coyaml_parseinfo_t *info, coyaml_bool_t *def, void *target) {
+    COYAML_DEBUG("Entering Bool");
+    SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
+    char *value = info->event.data.scalar.value;
+    if(
+        !strcasecmp(value, "true")
+        || !strcasecmp(value, "y")
+        || !strcasecmp(value, "yes")
+        || !strcasecmp(value, "on")
+        ) {
+        *(bool *)(((char *)target)+def->baseoffset) = TRUE;
+    } else if(
+        !strcasecmp(value, "false")
+        || !strcasecmp(value, "n")
+        || !strcasecmp(value, "no")
+        || !strcasecmp(value, "off")
+        ) {
+        *(bool *)(((char *)target)+def->baseoffset) = FALSE;
+    } else {
+        VALUE_ERROR(FALSE, "Option value ``%s'' is not boolean", value);
+    }
+    CHECK(coyaml_next(info));
+    COYAML_DEBUG("Leaving Bool");
     return 0;
 }
 

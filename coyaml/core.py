@@ -30,6 +30,12 @@ class IncrOption(Option):
 
 class DecrOption(Option):
     has_argument = False
+    
+class EnableOption(Option):
+    has_argument = False
+
+class DisableOption(Option):
+    has_argument = False
 
 class Usertype(object):
     def __init__(self, name, members, **kw):
@@ -83,6 +89,8 @@ class Config(object):
             self._visit_option(v, 'command_line', Option)
             self._visit_option(v, 'command_line_incr', IncrOption)
             self._visit_option(v, 'command_line_decr', DecrOption)
+            self._visit_option(v, 'command_line_enable', EnableOption)
+            self._visit_option(v, 'command_line_disable', DisableOption)
 
     def _visit_option(self, ob, opt, cls):
         if hasattr(ob, opt):

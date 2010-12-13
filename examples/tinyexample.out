@@ -4,3 +4,6 @@ SimpleHTTPServer:
   log-file: hello
   root: /tmp/web
   server-string: coyaml-sampleserver/$coyaml_version
+  cgi-settings:
+    enabled: no
+    alias: cgi-bin

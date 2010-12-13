@@ -73,7 +73,7 @@ class GenHCode(object):
     def _struct_body(self, ast, dic, root):
         for k, v in dic.items():
             if isinstance(v, dict):
-                with ast(Var(AnonStruct(ast.block()), k)) as ss:
+                with ast(Var(AnonStruct(ast.block()), varname(k))) as ss:
                     self._struct_body(ss, v, root=root)
             elif isinstance(v, load.Mapping):
                 tname = '{0}_m_{1}_{2}'.format(self.prefix,

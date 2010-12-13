@@ -1,6 +1,7 @@
 #include <coyaml_src.h>
 #include <errno.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 
 #define VALUE_ERROR(cond, message, ...) if(!(cond)) { \
@@ -149,6 +150,35 @@ int coyaml_uint_incr_o(char *value, coyaml_uint_t *def, void *target) {
 }
 int coyaml_uint_decr_o(char *value, coyaml_uint_t *def, void *target) {
     --*(unsigned *)(((char *)target)+def->baseoffset);
+    return 0;
+}
+int coyaml_bool_o(char *value, coyaml_bool_t *def, void *target) {
+    if(
+        !strcasecmp(value, "true")
+        || !strcasecmp(value, "y")
+        || !strcasecmp(value, "yes")
+        || !strcasecmp(value, "on")
+        ) {
+        *(bool *)(((char *)target)+def->baseoffset) = TRUE;
+        return 0;
+    } else if(
+        !strcasecmp(value, "false")
+        || !strcasecmp(value, "n")
+        || !strcasecmp(value, "no")
+        || !strcasecmp(value, "off")
+        ) {
+        *(bool *)(((char *)target)+def->baseoffset) = FALSE;
+        return 0;
+    }
+    VALUE_ERROR(FALSE, "Option value ``%s'' is not boolean", value);
+}
+
+int coyaml_bool_enable_o(char *value, coyaml_bool_t *def, void *target) {
+    *(bool *)(((char *)target)+def->baseoffset) = TRUE;
+    return 0;
+}
+int coyaml_bool_disable_o(char *value, coyaml_bool_t *def, void *target) {
+    *(bool *)(((char *)target)+def->baseoffset) = FALSE;
     return 0;
 }
 

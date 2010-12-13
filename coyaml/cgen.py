@@ -64,8 +64,8 @@ class GenCCode(object):
         self.prefix = cfg.name
 
     def _vars(self, ast, decl=False):
-        items = ('usertype', 'group', 'string', 'file', 'dir', 'int', 'uint',
-            'custom', 'mapping', 'array')
+        items = ('group', 'string', 'file', 'dir', 'int', 'uint',
+            'custom', 'mapping', 'array', 'bool')
         if decl:
             for i in items:
                 ast(Var('coyaml_'+i+'_t',
@@ -250,8 +250,14 @@ class GenCCode(object):
                     opt_fun = opt.target.prop_func + '_incr_o'
                 elif isinstance(opt, core.DecrOption):
                     opt_fun = opt.target.prop_func + '_decr_o'
+                elif isinstance(opt, core.EnableOption):
+                    opt_fun = opt.target.prop_func + '_enable_o'
+                elif isinstance(opt, core.DisableOption):
+                    opt_fun = opt.target.prop_func + '_disable_o'
                 elif isinstance(opt, core.Option):
                     opt_fun = opt.target.prop_func+'_o'
+                else:
+                    raise NotImplementedError(opt)
                 copt(StrValue(
                     callback=Coerce('coyaml_option_fun', Ref(opt_fun)),
                     prop=opt.target.prop_ref,
@@ -261,7 +267,10 @@ class GenCCode(object):
             Arr(list(map(Int, optidx))), static=True, array=(None,)))
         stroptions = []
         for target in targets:
-            for typ in (core.Option, core.IncrOption, core.DecrOption):
+            for typ in (core.Option,
+                core.IncrOption, core.DecrOption,
+                core.EnableOption, core.DisableOption,
+                ):
                 opt = ', '.join(o.param for o in target.options[typ])
                 if not opt:
                     continue
@@ -270,6 +279,10 @@ class GenCCode(object):
                         description = 'Increment aformentioned value'
                     elif typ == core.DecrOption:
                         description = 'Decrement aformentioned value'
+                    elif typ == core.EnableOption:
+                        description = 'Enable aformentioned option'
+                    elif typ == core.DisableOption:
+                        description = 'Disable aformentioned option'
                 else:
                     description = target.description
                 if len(opt) <= 17:
@@ -389,6 +402,19 @@ class GenCCode(object):
                 if asttyp is String:
                     lenmem = mem.__class__(mem.source, mem.name.value + '_len')
                     dast(Statement(Assign(lenmem, Int(len(item.default_)))))
+            if not name.startswith('_'):
+                self.mkstate(item, struct_name, mem)
+        elif isinstance(item, load.Bool):
+            item.struct_name = struct_name
+            item.member_path = mem
+            if not name.startswith('_'):
+                past(Statement(Call('fprintf', [ Ident('out'),
+                    String('%s{0}{1}: %s\n'.format(pws, name)),
+                    Ident('prefix'), Ternary(mem, String('yes'), String('no')),
+                    ])))
+            if hasattr(item, 'default_'):
+                dast(Statement(Assign(mem, Ident('TRUE')
+                    if item.default_ else Ident('FALSE'))))
             if not name.startswith('_'):
                 self.mkstate(item, struct_name, mem)
         elif isinstance(item, load.Struct):
@@ -626,6 +652,14 @@ class GenCCode(object):
             item.prop_func = 'coyaml_uint'
             item.prop_ref = Ref(Subscript(Ident(self.prefix+'_uint_vars'),
                 Int(len(self.states['uint'].content)-1)))
+        elif isinstance(item, load.Bool):
+            self.states['bool'](StrValue(
+                baseoffset=Call('offsetof', [ Ident(struct_name),
+                    mem2dotname(member) ])
+                ))
+            item.prop_func = 'coyaml_bool'
+            item.prop_ref = Ref(Subscript(Ident(self.prefix+'_bool_vars'),
+                Int(len(self.states['bool'].content)-1)))
         elif isinstance(item, load.String):
             self.states['string'](StrValue(
                 baseoffset=Call('offsetof', [ Ident(struct_name),

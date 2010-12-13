@@ -10,6 +10,7 @@ reserved = {
     'double',
     'char',
     'bool',
+    'static',
     }
 
 builtin_conversions = set([

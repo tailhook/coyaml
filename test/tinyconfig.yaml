@@ -40,3 +40,12 @@ SimpleHTTPServer:
     default: coyaml-sampleserver/$coyaml_version
     description: >
       String which will be sent in the header named Server
+  cgi-settings:
+    enabled: !Bool
+      =: no
+      description: >
+        Enable cgi handling
+      command-line: [--cgi]
+      command-line-enable: [-g]
+      command-line-disable: [-G]
+    alias: !String cgi-bin
