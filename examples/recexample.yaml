@@ -1,17 +1,40 @@
 
-Server:
-    port: 3333
-
-Routing:
-    list:
-        - value: hello
-    map:
-        one:
-            list:
-                - value: hello
-                - value: world
-        two:
-            value: yahoo
-            map:
-                hello:
-                    value: world
+Logging:
+  level: 5
+  formatter:
+    dateformat: "%Y%m%d%H%M%S"
+    format: "[{time}] {logger} {levelname} {message}"
+  inheritedlist:
+    - one
+    - two
+  noninheritedlist:
+    - ein
+    - zwei
+    
+  children:  
+    performance:
+      level: 7
+      formatter:
+        format: "{message}"
+      handlers: !Replace
+        - !File
+          filename: performance.log
+    game:
+      inheritedlist:
+        - three
+      noninheritedlist:
+        - one
+      propagate: no
+      handlers:
+        - !TimedRotatingFile
+          level: 3
+          filename: errors.log
+        - !SizeRotatingFile
+          filename: game.log
+          max-size: 10Mi
+      
+      children:
+        rating:
+          level: 6
+    
+      

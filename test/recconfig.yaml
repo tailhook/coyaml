@@ -1,26 +1,71 @@
 
 __meta__:
-    program-name: server
-    description: testting http server with recursive config
+    program-name: loggingconfig
+    description: recursive logging config example
     default-config: /etc/recconfig.yaml
 
 __types__:
 
-  Route:
+  formatter:
+    dateformat: !String "%Y-%m-%d %H:%M:%S"
+    format: !String "[{time}] {logger} {levelname} {message}"
+    
+  handler:
+    __tags__:
+      __default__: StdErr
+      StdErr: 0
+      File: 1
+      SizeRotatingFile: 2
+      TimedRotatingFile: 2
+    level: !Int
+      min: 1
+      max: 8
+      default: 8
+      description: >
+        Logging level of this specific handler. By default inherits from the
+        logger it was defined in
+    filename: !String ~
+    max-size: !Int 1Mi
+    period: !Int 86400
+    
+    __inheritance__:
+      # same inheritance chain, actually used to inherit `level` value
+      key: loggers
 
-    value: !String ""
-
-    map: !Mapping
+  Logger:
+  
+    level: !Int
+      min: 1
+      max: 8
+      default: 8
+      description: >
+        Logging level
+      inheritance: yes
+    
+    propagate: !Bool
+      =: yes
+      inheritance: no
+    
+    formatter: !Struct
+      type: formatter
+      inheritance: yes
+    
+    handlers: !Array
+      element: !Struct handler
+      inheritance: append-default
+    
+    inheritedlist: !Array
+      element: !String ~
+    
+    noninheritedlist: !Array
+      element: !String ~
+  
+    children: !Mapping
       key-element: !String ~
-      value-element: !Struct Route
+      value-element: !Struct Logger
+      inheritance: no
+    
+    __inheritance__:
+      key: loggers
 
-    list: !Array
-      element: !Struct Route
-
-Server:
-    port: !Int
-      =: 80
-      description: Port number
-      command-line: -p
-
-Routing: !Struct Route
+Logging: !Struct Logger

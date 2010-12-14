@@ -3,7 +3,7 @@ from collections import defaultdict
 from contextlib import nested
 
 from . import load, core
-from .util import builtin_conversions
+from .util import builtin_conversions, parse_int
 from .cutil import varname, string, typename, cbool
 from .cast import *
 
@@ -30,8 +30,8 @@ placeholders = {
     }
 
 cfgtoast = {
-    load.Int: Int,
-    load.UInt: Int,
+    load.Int: lambda val: Int(parse_int(val)),
+    load.UInt: lambda val: Int(parse_int(val)),
     load.String: String,
     load.File: String,
     load.Dir: String,
