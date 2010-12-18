@@ -259,8 +259,7 @@ class GenCCode(object):
                 else:
                     raise NotImplementedError(opt)
                 copt(StrValue(
-                    callback=Coerce('coyaml_option_fun', Ref(opt_fun)),
-                    prop=opt.target.prop_ref,
+                    prop=Coerce('coyaml_placeholder_t *', opt.target.prop_ref),
                     ))
             cmd(StrValue(name=NULL, val=Int(0), flag='NULL', has_arg='FALSE')),
         ast(VarAssign('int', self.prefix+'_optidx',
@@ -339,15 +338,15 @@ class GenCCode(object):
                     past=past, pfun=past, dast=dast, root=ast)
                 tran(StrValue(
                     symbol=String(k),
-                    callback=Coerce('coyaml_state_fun', Ref(v.prop_func)),
-                    prop=v.prop_ref,
+                    prop=Coerce('coyaml_placeholder_t *', v.prop_ref),
                     ))
             tran(StrValue(symbol=Ident('NULL'),
-                callback=Ident('NULL'), prop=Ident('NULL')))
+                prop=Ident('NULL')))
             free = getattr(past, '_const_free', ())
             for i in free:
                 past(Statement(Call('free', [ Ident(i) ])))
             self.states['group'](StrValue(
+                type=Ref(Ident('coyaml_group_type')),
                 baseoffset=Int(0),
                 transitions=tranname,
                 ))
@@ -369,12 +368,12 @@ class GenCCode(object):
                     if k.startswith('_'): continue
                     tran(StrValue(
                         symbol=String(k),
-                        callback=Coerce('coyaml_state_fun', Ref(v.prop_func)),
-                        prop=v.prop_ref,
+                        prop=Coerce('coyaml_placeholder_t *', v.prop_ref),
                         ))
                 tran(StrValue(symbol=Ident('NULL'),
-                    callback=Ident('NULL'), prop=Ident('NULL')))
+                    prop=Ident('NULL')))
             self.states['group'](StrValue(
+                type=Ref(Ident('coyaml_group_type')),
                 baseoffset=Call('offsetof', [ Ident(struct_name),
                     mem2dotname(mem) ]),
                 transitions=tranname,
@@ -448,16 +447,16 @@ class GenCCode(object):
                                 continue
                             tran(StrValue(
                                 symbol=String(k),
-                                callback=Coerce('coyaml_state_fun',
-                                    Ref(v.prop_func)),
-                                prop=v.prop_ref,
+                                prop=Coerce('coyaml_placeholder_t *',
+                                    v.prop_ref),
                                 ))
                         tran(StrValue(symbol=Ident('NULL'),
-                            callback=Ident('NULL'), prop=Ident('NULL')))
+                            prop=Ident('NULL')))
                     free = getattr(cur, '_const_free', ())
                     for i in free:
                         cur(Statement(Call('free', [ Ident(i) ])))
                 self.states['group'](StrValue(
+                    type=Ref(Ident('coyaml_group_type')),
                     baseoffset=Call('offsetof', [ Ident(struct_name),
                         mem2dotname(mem) ]),
                     transitions=tranname,
@@ -486,6 +485,7 @@ class GenCCode(object):
                     uzone(VSpace())
                 uzone(VarAssign('coyaml_usertype_t',
                     self.prefix+'_'+item.type+'_def', StrValue(
+                        type=Ref(Ident('coyaml_usertype_type')),
                         baseoffset=Int(0),
                         group=Ref(Subscript(Ident(self.prefix+'_group_vars'),
                             Int(len(self.states['group'].content)-1))),
@@ -513,6 +513,7 @@ class GenCCode(object):
                 dast(Statement(Call(self.prefix+'_defaults_'+item.type, [
                     Ref(mem) ])))
             self.states['custom'](StrValue(
+                type=Ref(Ident('coyaml_custom_type')),
                 baseoffset=Call('offsetof', [ Ident(struct_name),
                     mem2dotname(mem) ]),
                 usertype=Ref(Ident(self.prefix+'_'+item.type+'_def')),
@@ -561,18 +562,17 @@ class GenCCode(object):
                 else:
                     raise NotImplementedError(item.key_element)
             self.states['mapping'](StrValue(
+                type=Ref(Ident('coyaml_mapping_type')),
                 baseoffset=Call('offsetof', [ Ident(struct_name),
                     mem2dotname(mem) ]),
                 element_size=Call('sizeof', [ Typename(mstr) ]),
-                key_prop=item.key_element.prop_ref,
-                key_callback=Coerce('coyaml_state_fun',
-                    item.key_element.prop_func),
+                key_prop=Coerce('coyaml_placeholder_t *',
+                    item.key_element.prop_ref),
                 key_defaults=Coerce('coyaml_defaults_fun',
                     self.prefix+'_defaults_'+item.key_element.type)
                     if isinstance(item.key_element, load.Struct) else NULL,
-                value_prop=item.value_element.prop_ref,
-                value_callback=Coerce('coyaml_state_fun',
-                    item.value_element.prop_func),
+                value_prop=Coerce('coyaml_placeholder_t *',
+                    item.value_element.prop_ref),
                 value_defaults=Coerce('coyaml_defaults_fun',
                     self.prefix+'_defaults_'+item.value_element.type)
                     if isinstance(item.value_element, load.Struct) else NULL,
@@ -609,12 +609,12 @@ class GenCCode(object):
                         Member(Ident('item'), 'value'),
                         past=ploop, pfun=pfun, dast=None, root=root)
             self.states['array'](StrValue(
+                type=Ref(Ident('coyaml_array_type')),
                 baseoffset=Call('offsetof', [ Ident(struct_name),
                     mem2dotname(mem) ]),
                 element_size=Call('sizeof', [ Typename(astr) ]),
-                element_prop=item.element.prop_ref,
-                element_callback=Coerce('coyaml_state_fun',
-                    Ref(item.element.prop_func)),
+                element_prop=Coerce('coyaml_placeholder_t *',
+                    item.element.prop_ref),
                 element_defaults=Coerce('coyaml_defaults_fun',
                     self.prefix+'_defaults_'+item.element.type)
                     if isinstance(item.element, load.Struct) else NULL,
@@ -628,6 +628,7 @@ class GenCCode(object):
     def mkstate(self, item, struct_name, member):
         if isinstance(item, load.Int):
             self.states['int'](StrValue(
+                type=Ref(Ident('coyaml_int_type')),
                 baseoffset=Call('offsetof', [ Ident(struct_name),
                     mem2dotname(member) ]),
                 min=Int(getattr(item, 'min', 0)),
@@ -641,6 +642,7 @@ class GenCCode(object):
                 Int(len(self.states['int'].content)-1)))
         elif isinstance(item, load.UInt):
             self.states['uint'](StrValue(
+                type=Ref(Ident('coyaml_uint_type')),
                 baseoffset=Call('offsetof', [ Ident(struct_name),
                     mem2dotname(member) ]),
                 min=Int(getattr(item, 'min', 0)),
@@ -654,6 +656,7 @@ class GenCCode(object):
                 Int(len(self.states['uint'].content)-1)))
         elif isinstance(item, load.Bool):
             self.states['bool'](StrValue(
+                type=Ref(Ident('coyaml_bool_type')),
                 baseoffset=Call('offsetof', [ Ident(struct_name),
                     mem2dotname(member) ])
                 ))
@@ -662,6 +665,7 @@ class GenCCode(object):
                 Int(len(self.states['bool'].content)-1)))
         elif isinstance(item, load.String):
             self.states['string'](StrValue(
+                type=Ref(Ident('coyaml_string_type')),
                 baseoffset=Call('offsetof', [ Ident(struct_name),
                     mem2dotname(member) ]),
                 ))
@@ -670,6 +674,7 @@ class GenCCode(object):
                 Int(len(self.states['string'].content)-1)))
         elif isinstance(item, load.File):
             self.states['file'](StrValue(
+                type=Ref(Ident('coyaml_file_type')),
                 baseoffset=Call('offsetof', [ Ident(struct_name),
                     mem2dotname(member) ]),
                 bitmask=Int(bitmask(hasattr(item, 'warn_outside'))),
@@ -683,6 +688,7 @@ class GenCCode(object):
                 Int(len(self.states['file'].content)-1)))
         elif isinstance(item, load.Dir):
             self.states['dir'](StrValue(
+                type=Ref(Ident('coyaml_dir_type')),
                 baseoffset=Call('offsetof', [ Ident(struct_name),
                     mem2dotname(member) ]),
                 check_existence=cbool(getattr(item, 'check_existence', False)),

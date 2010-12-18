@@ -1,7 +1,7 @@
 from string import digits
 import re
 
-re_int = re.compile("""\s*(\d+)\s*([kMGTPE]i?)?\s*$""")
+re_int = re.compile("""\s*(-?\s*\d+)\s*([kMGTPE]i?)?\s*$""")
 units = {
     "k": 1000,
     "ki": 1 << 10,

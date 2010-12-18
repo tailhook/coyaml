@@ -28,4 +28,29 @@ typedef struct coyaml_mapmerge_s {
     int mergelists;
 } coyaml_mapmerge_t;
 
+int coyaml_group(coyaml_parseinfo_t *info,
+    coyaml_group_t *prop, void *target);
+int coyaml_int(coyaml_parseinfo_t *info,
+    coyaml_int_t *prop, void *target);
+int coyaml_uint(coyaml_parseinfo_t *info,
+    coyaml_uint_t *prop, void *target);
+int coyaml_bool(coyaml_parseinfo_t *info,
+    coyaml_bool_t *prop, void *target);
+int coyaml_float(coyaml_parseinfo_t *info,
+    coyaml_float_t *prop, void *target);
+int coyaml_array(coyaml_parseinfo_t *info,
+    coyaml_array_t *prop, void *target);
+int coyaml_mapping(coyaml_parseinfo_t *info,
+    coyaml_mapping_t *prop, void *target);
+int coyaml_file(coyaml_parseinfo_t *info,
+    coyaml_file_t *prop, void *target);
+int coyaml_dir(coyaml_parseinfo_t *info,
+    coyaml_dir_t *prop, void *target);
+int coyaml_string(coyaml_parseinfo_t *info,
+    coyaml_string_t *prop, void *target);
+int coyaml_custom(coyaml_parseinfo_t *info,
+    coyaml_custom_t *prop, void *target);
+int coyaml_usertype(coyaml_parseinfo_t *info,
+    coyaml_usertype_t *prop, void *target);
+
 #endif //_H_PARSER

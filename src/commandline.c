@@ -123,6 +123,7 @@ int coyaml_int_o(char *value, coyaml_int_t *def, void *target) {
     *(int *)(((char *)target)+def->baseoffset) = val;
     return 0;
 }
+
 int coyaml_uint_o(char *value, coyaml_uint_t *def, void *target) {
     char *end;
     int val = strtol(value, (char **)&end, 0);
@@ -133,6 +134,19 @@ int coyaml_uint_o(char *value, coyaml_uint_t *def, void *target) {
     VALUE_ERROR(!(def->bitmask&1) || val >= def->min,
         "Value must be greater than or equal to %d", def->min);
     *(unsigned *)(((char *)target)+def->baseoffset) = val;
+    return 0;
+}
+
+int coyaml_float_o(char *value, coyaml_float_t *def, void *target) {
+    char *end;
+    double val = strtod(value, (char **)&end);
+    VALUE_ERROR(end == value + strlen(value),
+        "Option value ``%s'' is not float", value);
+    VALUE_ERROR(!(def->bitmask&2) || val <= def->max,
+        "Value must be less than or equal to %d", def->max);
+    VALUE_ERROR(!(def->bitmask&1) || val >= def->min,
+        "Value must be greater than or equal to %d", def->min);
+    *(double *)(((char *)target)+def->baseoffset) = val;
     return 0;
 }
 

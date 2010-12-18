@@ -599,7 +599,7 @@ int coyaml_group(coyaml_parseinfo_t *info, coyaml_group_t *def, void *target) {
         if(tran && tran->symbol) {
             COYAML_DEBUG("Matched key ``%s''", tran->symbol);
             CHECK(coyaml_next(info));
-            CHECK(tran->callback(info, tran->prop, target));
+            CHECK(tran->prop->type->yaml_parse(info, tran->prop, target));
         } else {
             if(info->debug) {
                 COYAML_DEBUG("Expected keys:");
@@ -641,6 +641,32 @@ int coyaml_int(coyaml_parseinfo_t *info, coyaml_int_t *def, void *target) {
     *(long *)(((char *)target)+def->baseoffset) = val;
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving Int");
+    return 0;
+}
+
+int coyaml_float(coyaml_parseinfo_t *info, coyaml_float_t *def, void *target) {
+    COYAML_DEBUG("Entering Float");
+    SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
+    unsigned char *end;
+    double val = strtod(info->event.data.scalar.value, (char **)&end);
+    if(*end) {
+        for(struct unit_s *unit = units; unit->unit; ++unit) {
+            if(!strcmp(end, unit->unit)) {
+                val *= unit->value;
+                end += strlen(unit->unit);
+                break;
+            }
+        }
+    }
+    SYNTAX_ERROR(end == info->event.data.scalar.value
+        + info->event.data.scalar.length);
+    VALUE_ERROR(!(def->bitmask&2) || val <= def->max,
+        "Value must be less than or equal to %d", def->max);
+    VALUE_ERROR(!(def->bitmask&1) || val >= def->min,
+        "Value must be greater than or equal to %d", def->min);
+    *(double *)(((char *)target)+def->baseoffset) = val;
+    CHECK(coyaml_next(info));
+    COYAML_DEBUG("Leaving Float");
     return 0;
 }
 
@@ -825,8 +851,8 @@ int coyaml_usertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *targ
         for(coyaml_transition_t *tr = def->group->transitions; tr->symbol; ++tr) {
             COYAML_DEBUG("Symbol ``%s''", tr->symbol);
             if(!strcmp(tr->symbol, "value")) {
-                COYAML_ASSERT((void *)tr->callback == (void *)coyaml_array);
-                CHECK(coyaml_array(info, tr->prop, target));
+                COYAML_ASSERT((void *)tr->prop->type == &coyaml_array_type);
+                CHECK(coyaml_array(info, (coyaml_array_t *)tr->prop, target));
                 break;
             }
         }
@@ -860,13 +886,13 @@ int coyaml_mapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *target
             def->element_size);
         bzero(newel, def->element_size);
         if(def->key_defaults) {
-            def->key_defaults((char *)newel+*(int *)def->key_prop);
+            def->key_defaults((char *)newel + def->key_prop->baseoffset);
         }
         if(def->value_defaults) {
-            def->value_defaults((char *)newel+*(int *)def->value_prop);
+            def->value_defaults((char *)newel + def->value_prop->baseoffset);
         }
-        CHECK(def->key_callback(info, def->key_prop, newel));
-        CHECK(def->value_callback(info, def->value_prop, newel));
+        CHECK(def->key_prop->type->yaml_parse(info, def->key_prop, newel));
+        CHECK(def->value_prop->type->yaml_parse(info, def->value_prop, newel));
         nelements += 1;
         if(!lastel) {
             *(void **)((char *)target+def->baseoffset) = newel;
@@ -893,9 +919,10 @@ int coyaml_array(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
             def->element_size);
         bzero(newel, def->element_size);
         if(def->element_defaults) {
-            def->element_defaults((char *)newel+*(int *)def->element_prop);
+            def->element_defaults((char *)newel + def->element_prop->baseoffset);
         }
-        CHECK(def->element_callback(info, def->element_prop, newel));
+        CHECK(def->element_prop->type->yaml_parse(info,
+            def->element_prop, newel));
         nelements += 1;
         if(!lastel) {
             *(void **)((char *)target+def->baseoffset) = newel;
@@ -950,21 +977,18 @@ int coyaml_tagged_scalar(coyaml_parseinfo_t *info, char *value,
     COYAML_ASSERT(gr);
     coyaml_transition_t *tr = gr->transitions;
     COYAML_ASSERT(tr);
-    coyaml_string_t *str = NULL;
     for(;tr->symbol; ++tr) {
         if(!strcmp(tr->symbol, "value")) {
-            COYAML_ASSERT(tr->callback == (coyaml_state_fun)coyaml_string
-                || info);
-            str = tr->prop;
+            COYAML_ASSERT(tr->prop->type == &coyaml_string_type || info);
             break;
         }
     }
-    COYAML_ASSERT(str);
+    COYAML_ASSERT(tr);
     if(info) {
-        tr->callback(info, str, target);
+        tr->prop->type->yaml_parse(info, tr->prop, target);
     } else {
-        *(char **)(((char *)target)+str->baseoffset) = value; //Dirty hack
-        *(int *)(((char *)target)+str->baseoffset+sizeof(char*)) =
+        *(char **)(((char *)target)+tr->prop->baseoffset) = value; //Dirty hack
+        *(int *)(((char *)target)+tr->prop->baseoffset+sizeof(char*)) =
             strlen(value);
     }
     COYAML_DEBUG("Leaving Tagged Scalar");
