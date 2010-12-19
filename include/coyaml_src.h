@@ -54,6 +54,13 @@ typedef struct coyaml_parseinfo_s {
 
 struct coyaml_usertype_s;
 struct coyaml_placeholder_s;
+struct coyaml_printctx_s;
+
+typedef enum {
+    COYAML_PRINT_SHORT = 0x00,
+    COYAML_PRINT_FULL = 0x01,
+    COYAML_PRINT_COMMENTS = 0x10 // bitmask
+} coyaml_print_enum;
 
 typedef int (*coyaml_convert_fun)(coyaml_parseinfo_t *info, char *value,
     struct coyaml_usertype_s *prop, void *target);
@@ -61,7 +68,7 @@ typedef int (*coyaml_state_fun)(coyaml_parseinfo_t *info,
     struct coyaml_placeholder_s *prop, void *target);
 typedef int (*coyaml_option_fun)(char *value,
     struct coyaml_placeholder_s *prop, void *target);
-typedef int (*coyaml_emit_fun)(yaml_emitter_t *emitter,
+typedef int (*coyaml_emit_fun)(struct coyaml_printctx_s *ctx,
     struct coyaml_placeholder_s *prop, void *target);
 typedef int (*coyaml_copy_fun)(coyaml_context_t *ctx,
     struct coyaml_placeholder_s *prop, void *source, void *target);
@@ -208,6 +215,8 @@ typedef struct coyaml_option_s {
 } coyaml_option_t;
 
 int coyaml_readfile(coyaml_context_t *);
+int coyaml_print(FILE *output, coyaml_group_t *root,
+    void *cfg, coyaml_print_enum mode);
 coyaml_context_t *coyaml_context_init(coyaml_context_t *ctx);
 void coyaml_context_free(coyaml_context_t *ctx);
 

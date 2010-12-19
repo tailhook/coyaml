@@ -207,8 +207,8 @@ class GenCCode(object):
             optval += 1
         ast(Func('int', self.prefix+'_print', [
                 Param('FILE *', 'out'),
-                Param('const char *', 'prefix'),
                 Param(self.prefix+'_main_t *', 'cfg'),
+                Param('coyaml_print_enum', 'mode'),
                 ]))
         with ast(VarAssign('struct option',
                 self.prefix+'_getopt_ar', Arr(ast.block()),
@@ -321,12 +321,7 @@ class GenCCode(object):
         ast(VSpace())
         tranname = Ident('transitions_{0}'.format(self.lasttran))
         self.lasttran += 1
-        with ast(Function('int', self.prefix+'_print', [
-                Param('FILE *', 'out'),
-                Param('const char *', 'prefix'),
-                Param(self.prefix+'_main_t *', 'cfg'),
-                ], ast.block())) as past, \
-            ast(Function('int', self.prefix+'_defaults', [
+        with ast(Function('int', self.prefix+'_defaults', [
                 Param(self.prefix+'_main_t *', 'cfg'),
                 ], ast.block())) as dast, \
             ast.zone('transitions')(VarAssign('coyaml_transition_t', tranname,
@@ -335,27 +330,32 @@ class GenCCode(object):
             for k, v in self.cfg.data.items():
                 self._visit_hier(v, k, self.prefix+'_main_t', '',
                     Member('cfg', varname(k)),
-                    past=past, pfun=past, dast=dast, root=ast)
+                    dast=dast, root=ast)
                 tran(StrValue(
                     symbol=String(k),
                     prop=Coerce('coyaml_placeholder_t *', v.prop_ref),
                     ))
             tran(StrValue(symbol=Ident('NULL'),
                 prop=Ident('NULL')))
-            free = getattr(past, '_const_free', ())
-            for i in free:
-                past(Statement(Call('free', [ Ident(i) ])))
             self.states['group'](StrValue(
                 type=Ref(Ident('coyaml_group_type')),
                 baseoffset=Int(0),
                 transitions=tranname,
                 ))
+        with ast(Function('int', self.prefix+'_print', [
+                Param('FILE *', 'out'),
+                Param(self.prefix+'_main_t *', 'cfg'),
+                Param('coyaml_print_enum', 'mode'),
+                ], ast.block())) as past:
+            past(Return(Call('coyaml_print', [
+                Ident('out'),
+                Ref(Subscript(Ident(self.prefix+'_group_vars'),
+                    Int(len(self.states['group'].content)-1))),
+                Ident('cfg'), Ident('mode'),
+                ])))
 
-    def _visit_hier(self, item, name, struct_name, pws, mem,
-        past, pfun, dast, root):
+    def _visit_hier(self, item, name, struct_name, pws, mem, dast, root):
         if isinstance(item, dict):
-            past(Statement(Call('fprintf', [ Ident('out'),
-                String('%s{0}{1}:\n'.format(pws, name)), Ident('prefix') ])))
             tranname = Ident('transitions_{0}'.format(self.lasttran))
             self.lasttran += 1
             with root.zone('transitions')(VarAssign('coyaml_transition_t',
@@ -363,8 +363,7 @@ class GenCCode(object):
                 static=True, array=(None,))) as tran:
                 for k, v in item.items():
                     self._visit_hier(v, k, struct_name, pws+'  ',
-                        Dot(mem, varname(k)),
-                        past=past, pfun=pfun, dast=dast, root=root)
+                        Dot(mem, varname(k)), dast=dast, root=root)
                     if k.startswith('_'): continue
                     tran(StrValue(
                         symbol=String(k),
@@ -384,17 +383,6 @@ class GenCCode(object):
         elif item.__class__ in placeholders:
             item.struct_name = struct_name
             item.member_path = mem
-            if not name.startswith('_'):
-                if placeholders[item.__class__] == '%s':
-                    lenmem = mem.__class__(mem.source, mem.name.value + '_len')
-                    past(Statement(Call('fprintf', [ Ident('out'),
-                        String('%s{0}{1}: %.*s\n'.format(pws, name,
-                        placeholders[item.__class__])), Ident('prefix'),
-                        lenmem, mem ])))
-                else:
-                    past(Statement(Call('fprintf', [ Ident('out'),
-                        String('%s{0}{1}: {2}\n'.format(pws, name,
-                        placeholders[item.__class__])), Ident('prefix'), mem ])))
             if hasattr(item, 'default_'):
                 asttyp = cfgtoast[item.__class__]
                 dast(Statement(Assign(mem, asttyp(item.default_))))
@@ -406,11 +394,6 @@ class GenCCode(object):
         elif isinstance(item, load.Bool):
             item.struct_name = struct_name
             item.member_path = mem
-            if not name.startswith('_'):
-                past(Statement(Call('fprintf', [ Ident('out'),
-                    String('%s{0}{1}: %s\n'.format(pws, name)),
-                    Ident('prefix'), Ternary(mem, String('yes'), String('no')),
-                    ])))
             if hasattr(item, 'default_'):
                 dast(Statement(Assign(mem, Ident('TRUE')
                     if item.default_ else Ident('FALSE'))))
@@ -427,12 +410,7 @@ class GenCCode(object):
                 utype = self.cfg.types[item.type]
                 tranname = Ident('transitions_{0}'.format(self.lasttran))
                 self.lasttran += 1
-                with root.zone('print_funcs')(Function('int', fname, [
-                        Param('FILE *', 'out'),
-                        Param('const char *', 'prefix'),
-                        Param(typname+' *', 'cfg'),
-                        ], root.block())) as cur, \
-                    root.zone('transitions')(VarAssign('coyaml_transition_t',
+                with root.zone('transitions')(VarAssign('coyaml_transition_t',
                         tranname, Arr(root.block()),
                         static=True, array=(None,))) as tran:
                     defname = self.prefix+'_defaults_'+item.type
@@ -442,7 +420,7 @@ class GenCCode(object):
                         for k, v in utype.members.items():
                             self._visit_hier(v, k, typname,
                                 '', Member('cfg', varname(k)),
-                                past=cur, pfun=cur, dast=cdef, root=root)
+                                dast=cdef, root=root)
                             if k.startswith('_'):
                                 continue
                             tran(StrValue(
@@ -452,9 +430,6 @@ class GenCCode(object):
                                 ))
                         tran(StrValue(symbol=Ident('NULL'),
                             prop=Ident('NULL')))
-                    free = getattr(cur, '_const_free', ())
-                    for i in free:
-                        cur(Statement(Call('free', [ Ident(i) ])))
                 self.states['group'](StrValue(
                     type=Ref(Ident('coyaml_group_type')),
                     baseoffset=Call('offsetof', [ Ident(struct_name),
@@ -494,21 +469,6 @@ class GenCCode(object):
                         scalar_fun=Coerce('coyaml_convert_fun', conv_fun)
                             if conv_fun else NULL,
                     ), static=True))
-            if name is not None:
-                past(Statement(Call('fprintf', [ Ident('out'),
-                    String('%s{0}{1}:\n'.format(pws, name)),
-                    Ident('prefix') ])))
-            pxname = 'prefix{0}'.format(len(pws)+2)
-            if not hasattr(pfun, '_const_'+pxname):
-                setattr(pfun, '_const_'+pxname, True)
-                if not hasattr(pfun, '_const_free'):
-                    pfun._const_free = []
-                pfun._const_free.append(pxname)
-                pfun.insert_first(Statement(Call('asprintf',[Ref(Ident(pxname)),
-                    String('%s' + pws + '  '), Ident('prefix') ])))
-                pfun.insert_first(Var('char *', Ident(pxname)))
-            past(Statement(Call(self.prefix+'_print_'+item.type, [ Ident('out'),
-                Ident(pxname), Ref(mem)])))
             if dast:
                 dast(Statement(Call(self.prefix+'_defaults_'+item.type, [
                     Ref(mem) ])))
@@ -524,43 +484,22 @@ class GenCCode(object):
         elif isinstance(item, load.Mapping):
             item.struct_name = struct_name
             item.member_path = mem
-            past(Statement(Call('fprintf', [ Ident('out'),
-                String('%s{0}{1}:\n'.format(pws, name)),
-                Ident('prefix') ])))
             mstr = (self.prefix+'_m_'+typename(item.key_element)
                     +'_'+typename(item.value_element)+'_t')
-            with past(For(
-                FVar(mstr+' *', 'item', mem),
-                Ident('item'), Assign(Ident('item'),
-                Dot(Member(Ident('item'), 'head'), 'next')),
-                past.block())) as loop:
-                self.mkstate(item.key_element, mstr,
-                    Member(Ident('item'), Ident('key')))
-                if not isinstance(item.key_element, load.Struct) \
-                    and not isinstance(item.value_element, load.Struct):
-                    loop(Statement(Call('fprintf', [ Ident('out'),
-                        String('%s{0}  {1}: {2}\n'.format(pws,
-                        placeholders[item.key_element.__class__],
-                        placeholders[item.value_element.__class__])),
-                        Ident('prefix'),
-                        Member(Ident('item'), 'key'),
-                        Member(Ident('item'), 'value'),
-                        ])))
-                    self.mkstate(item.value_element, mstr,
-                        Member(Ident('item'), Ident('value')))
-                elif not isinstance(item.key_element, load.Struct):
-                    loop(Statement(Call('fprintf', [ Ident('out'),
-                        String('%s{0}  {1}:\n'.format(pws,
-                            placeholders[item.key_element.__class__])),
-                        Ident('prefix'), Member(Ident('item'), 'key'),
-                        ])))
-                    self._visit_hier(item.value_element, None, '{0}_m_{1}_{2}_t'
-                        .format(self.prefix, typename(item.key_element),
-                        typename(item.value_element)), pws + '    ',
-                        Member(Ident('item'), 'value'),
-                        past=loop, pfun=pfun, dast=None, root=root)
-                else:
-                    raise NotImplementedError(item.key_element)
+            self.mkstate(item.key_element, mstr,
+                Member(Ident('item'), Ident('key')))
+            if not isinstance(item.key_element, load.Struct) \
+                and not isinstance(item.value_element, load.Struct):
+                self.mkstate(item.value_element, mstr,
+                    Member(Ident('item'), Ident('value')))
+            elif not isinstance(item.key_element, load.Struct):
+                self._visit_hier(item.value_element, None, '{0}_m_{1}_{2}_t'
+                    .format(self.prefix, typename(item.key_element),
+                    typename(item.value_element)), pws + '    ',
+                    Member(Ident('item'), 'value'),
+                    dast=None, root=root)
+            else:
+                raise NotImplementedError(item.key_element)
             self.states['mapping'](StrValue(
                 type=Ref(Ident('coyaml_mapping_type')),
                 baseoffset=Call('offsetof', [ Ident(struct_name),
@@ -583,31 +522,14 @@ class GenCCode(object):
         elif isinstance(item, load.Array):
             item.struct_name = struct_name
             item.member_path = mem
-            past(Statement(Call('fprintf', [ Ident('out'),
-                String('%s{0}{1}:\n'.format(pws, name)),
-                Ident('prefix') ])))
             astr = self.prefix+'_a_'+typename(item.element)+'_t'
-            with past(For(FVar(astr+' *', 'item', mem),
-                Ident('item'), Assign(Ident('item'),
-                Dot(Member(Ident('item'), 'head'), 'next')),
-                past.block())) as ploop:
-                if not isinstance(item.element, load.Struct):
-                    ploop(Statement(Call('fprintf', [ Ident('out'),
-                        String('%s{0}  - {1}\n'.format(pws,
-                        placeholders[item.element.__class__])),
-                        Ident('prefix'),
-                        Member(Ident('item'), 'value'),
-                        ])))
-                    self.mkstate(item.element, astr,
-                        Member(Ident('item'), Ident('value')))
-                else:
-                    ploop(Statement(Call('fprintf', [ Ident('out'),
-                        String('%s{0}  -\n'.format(pws)),
-                        Ident('prefix'),
-                        ])))
-                    self._visit_hier(item.element, None, astr, pws + '  ',
-                        Member(Ident('item'), 'value'),
-                        past=ploop, pfun=pfun, dast=None, root=root)
+            if not isinstance(item.element, load.Struct):
+                self.mkstate(item.element, astr,
+                    Member(Ident('item'), Ident('value')))
+            else:
+                self._visit_hier(item.element, None, astr, pws + '  ',
+                    Member(Ident('item'), 'value'),
+                    dast=None, root=root)
             self.states['array'](StrValue(
                 type=Ref(Ident('coyaml_array_type')),
                 baseoffset=Call('offsetof', [ Ident(struct_name),

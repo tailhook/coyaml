@@ -8,9 +8,9 @@ SimpleHTTPServer:
     unix-socket: 
   max-request-size: 1048576
   directory-indexes:
-    - index
-    - index.html
-    - index.php
+  - index
+  - index.html
+  - index.php
   root: /var/www
   server-string: coyaml-sampleserver/$coyaml_version
   extra-headers:
@@ -27,36 +27,29 @@ SimpleHTTPServer:
     X-Integer: 123 bytes
     X-Cli: value from CLI
   http-forward:
-    -
-      host: 192.168.0.1
-      port: 80
-      unix-socket: 
-    -
-      host: 192.168.0.2
-      port: 80
-      unix-socket: 
-    -
-      host: 192.168.0.3
-      port: 8080
-      unix-socket: 
-    -
-      host: 192.168.0.5
-      port: 9980
-      unix-socket: 
-    -
-      host: 192.168.0.9
-      port: 80
-      unix-socket: 
-    -
-      host: 
-      port: 80
-      unix-socket: /var/run/internal_http
+  - host: 192.168.0.1
+    port: 80
+    unix-socket: 
+  - host: 192.168.0.2
+    port: 80
+    unix-socket: 
+  - host: 192.168.0.3
+    port: 8080
+    unix-socket: 
+  - host: 192.168.0.5
+    port: 9980
+    unix-socket: 
+  - host: 192.168.0.9
+    port: 80
+    unix-socket: 
+  - host: 
+    port: 80
+    unix-socket: /var/run/internal_http
   status-socket:
     value: tcp://127.0.0.1:1234
   zmq-forward:
     value:
-      -
-        value: tcp://127.0.0.1:123
+    - value: tcp://127.0.0.1:123
   intvalue:
     value: 2
   intvalue2:
@@ -68,15 +61,8 @@ SimpleHTTPServer:
         Content-Type: text/html
         X-Fortune: no
       code: 200
-      body: <!DOCTYPE html>
-<html>
-    <head><title>Hello</title></head>
-    <body>
-        <h1>Hello</h2>
-        This is an empty site, actually!
-    </body>
-</html>
-
+      body: "<!DOCTYPE html>\n<html>\n    <head><title>Hello</title></head>\n    <body>\n
+        \       <h1>Hello</h2>\n        This is an empty site, actually!\n    </body>\n</html>\n"
     not-found:
       status: Error
       headers:

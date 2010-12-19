@@ -18,7 +18,9 @@ typedef int bool;
 #define ECOYAML_CLI_HELP (ECOYAML_MIN+5)
 #define ECOYAML_MAX (ECOYAML_MIN+5)
 
-typedef void (*coyaml_print_fun)(FILE *out, char *prefix, void *cfg);
+struct coyaml_group_s;
+
+typedef int (*coyaml_print_fun)(FILE *out, void *cfg, int mode);
 
 typedef struct coyaml_head_s {
     struct obstack pieces;

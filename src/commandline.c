@@ -102,7 +102,10 @@ int coyaml_cli_parse(coyaml_context_t *ctx, int argc, char **argv) {
         return -1;
     }
     if(do_print) {
-        ctx->cmdline->print_callback(stdout, "", ctx->target);
+        if(ctx->cmdline->print_callback(stdout, ctx->target,
+            COYAML_PRINT_FULL/*fixme*/) < 0) {
+            return -1;
+        }
     }
     if(do_exit) {
         errno = ECOYAML_CLI_EXIT;

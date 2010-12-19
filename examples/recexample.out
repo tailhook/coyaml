@@ -1,30 +1,58 @@
-Server:
-  port: 3333
-Routing:
-  map:
-    one:
-        map:
-        list:
-          -
-            map:
-            list:
-            value: hello
-          -
-            map:
-            list:
-            value: world
-        value: 
-    two:
-        map:
-          hello:
-              map:
-              list:
-              value: world
-        list:
-        value: yahoo
-  list:
-    -
-      map:
-      list:
-      value: hello
-  value: 
+Logging:
+  handlers: []
+  noninheritedlist:
+  - ein
+  - zwei
+  level: 5
+  inheritedlist:
+  - one
+  - two
+  propagate: yes
+  formatter:
+    format: '[{time}] {logger} {levelname} {message}'
+    dateformat: '%Y%m%d%H%M%S'
+  children:
+    performance:
+      handlers:
+      - max-size: 1048576
+        filename: performance.log
+        period: 86400
+        level: 8
+      noninheritedlist: []
+      level: 7
+      inheritedlist: []
+      propagate: yes
+      formatter:
+        format: '{message}'
+        dateformat: '%Y-%m-%d %H:%M:%S'
+      children: {}
+    game:
+      handlers:
+      - max-size: 1048576
+        filename: errors.log
+        period: 86400
+        level: 3
+      - max-size: 10485760
+        filename: game.log
+        period: 86400
+        level: 8
+      noninheritedlist:
+      - one
+      level: 8
+      inheritedlist:
+      - three
+      propagate: no
+      formatter:
+        format: '[{time}] {logger} {levelname} {message}'
+        dateformat: '%Y-%m-%d %H:%M:%S'
+      children:
+        rating:
+          handlers: []
+          noninheritedlist: []
+          level: 6
+          inheritedlist: []
+          propagate: yes
+          formatter:
+            format: '[{time}] {logger} {levelname} {message}'
+            dateformat: '%Y-%m-%d %H:%M:%S'
+          children: {}

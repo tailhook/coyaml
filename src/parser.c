@@ -14,8 +14,8 @@
 #include <coyaml_src.h>
 #include "vars.h"
 #include "parser.h"
+#include "util.h"
 
-#define CHECK(cond) if((cond) < 0) { return -1; }
 #define SYNTAX_ERROR(cond) if(!(cond)) { \
     fprintf(stderr, "COYAML: Syntax error in config file ``%s'' " \
         "at line %d column %d\n", \
@@ -824,7 +824,7 @@ int coyaml_string(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) 
                 }
             }
             obstack_1grow(&info->head->pieces, 0);
-            dlen = obstack_object_size(&info->head->pieces);
+            dlen = obstack_object_size(&info->head->pieces)-1;
             data = obstack_finish(&info->head->pieces);
         } else {
             data = obstack_copy0(&info->head->pieces, data, dlen);
