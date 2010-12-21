@@ -96,6 +96,12 @@ typedef enum {
     COYAML_TYPE_SENTINEL
 } coyaml_type_enum;
 
+typedef enum {
+    COYAML_INH_NO,
+    COYAML_INH_APPEND_DEFAULT,
+    COYAML_INH_REPLACE_DEFAULT
+} coyaml_inherit_enum;
+
 typedef struct coyaml_valuetype_s {
     coyaml_type_enum ident;
     char *name;
@@ -180,6 +186,7 @@ extern coyaml_valuetype_t coyaml_float_type;
 
 typedef struct coyaml_array_s {
     COYAML_PLACEHOLDER
+    int inheritance;
     size_t element_size;
     coyaml_placeholder_t *element_prop;
     coyaml_defaults_fun element_defaults;
@@ -188,6 +195,7 @@ extern coyaml_valuetype_t coyaml_array_type;
 
 typedef struct coyaml_mapping_s {
     COYAML_PLACEHOLDER
+    int inheritance;
     size_t element_size;
     coyaml_placeholder_t *key_prop;
     coyaml_placeholder_t *value_prop;

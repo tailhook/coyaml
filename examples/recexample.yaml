@@ -10,6 +10,10 @@ Logging:
   noninheritedlist:
     - ein
     - zwei
+  handlers:
+    - !TimedRotatingFile
+      level: 3
+      filename: errors.log
     
   children:  
     performance:
@@ -20,15 +24,12 @@ Logging:
         - !File
           filename: performance.log
     game:
-      inheritedlist:
+      inheritedlist: !Append
         - three
-      noninheritedlist:
+      noninheritedlist: !Inherit
         - one
       propagate: no
       handlers:
-        - !TimedRotatingFile
-          level: 3
-          filename: errors.log
         - !SizeRotatingFile
           filename: game.log
           max-size: 10Mi

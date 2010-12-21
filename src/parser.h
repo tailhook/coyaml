@@ -35,7 +35,7 @@ typedef struct coyaml_mapmerge_s {
 typedef struct coyaml_marks_s {
     struct coyaml_marks_s *parent;
     struct coyaml_marks_s *prev;
-    coyaml_placeholder_t *prop;
+    coyaml_usertype_t *prop;
     void *object;
     int type;
     char filled[];

@@ -56,9 +56,11 @@ __types__:
     
     inheritedlist: !Array
       element: !String ~
+      inheritance: replace-default
     
     noninheritedlist: !Array
       element: !String ~
+      inheritance: no
   
     children: !Mapping
       key-element: !String ~

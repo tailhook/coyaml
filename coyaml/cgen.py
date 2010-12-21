@@ -544,6 +544,9 @@ class GenCCode(object):
                     mem2dotname(mem) ]),
                 flagoffset=Int(struct.nextflag())
                     if hasattr(struct, 'nextflag') else Int(0),
+                inheritance=Ident("COYAML_INH_NO")
+                    if not item.inheritance else
+                    "COYAML_INH_" + item.inheritance.upper().replace('-', '_'),
                 element_size=Call('sizeof', [ Typename(mstr.name) ]),
                 key_prop=Coerce('coyaml_placeholder_t *',
                     item.key_element.prop_ref),
@@ -576,6 +579,9 @@ class GenCCode(object):
                     mem2dotname(mem) ]),
                 flagoffset=Int(struct.nextflag())
                     if hasattr(struct, 'nextflag') else Int(0),
+                inheritance=Ident("COYAML_INH_NO")
+                    if not item.inheritance else
+                    "COYAML_INH_" + item.inheritance.upper().replace('-', '_'),
                 element_size=Call('sizeof', [ Typename(astr.name) ]),
                 element_prop=Coerce('coyaml_placeholder_t *',
                     item.element.prop_ref),

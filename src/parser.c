@@ -50,6 +50,10 @@
     COYAML_ASSERT(!((info)->top_mark->filled[(def)->flagoffset])); \
     (info)->top_mark->filled[(def)->flagoffset] = 1; \
     }
+#define SETFLAG_1(info, def) if((info)->top_mark && (def)->flagoffset) { \
+    COYAML_ASSERT(!((info)->top_mark->filled[(def)->flagoffset])); \
+    (info)->top_mark->filled[(def)->flagoffset] = -1; \
+    }
 
 #define obstack_alloc_failed_handler() longjmp(info->recover);
 
@@ -909,8 +913,19 @@ int coyaml_custom(coyaml_parseinfo_t *info, coyaml_custom_t *def, void *target) 
 
 int coyaml_mapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *target) {
     COYAML_DEBUG("Entering Mapping");
-    SETFLAG(info, def);
-    SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
+    if(def->inheritance == COYAML_INH_REPLACE_DEFAULT) {
+        if(!info->event.data.mapping_start.tag
+            || strcmp(info->event.data.mapping_start.tag, "!Append")) {
+            SETFLAG(info, def);
+        }
+    } else if(def->inheritance == COYAML_INH_APPEND_DEFAULT) {
+        if(info->event.data.mapping_start.tag
+            && !strcmp(info->event.data.mapping_start.tag, "!Replace")) {
+            SETFLAG(info, def);
+        } else {
+            SETFLAG_1(info, def);
+        }
+    }
     CHECK(coyaml_next(info));
     coyaml_mappingel_head_t *lastel = NULL;
     size_t nelements = 0;
@@ -943,7 +958,19 @@ int coyaml_mapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *target
 
 int coyaml_array(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
     COYAML_DEBUG("Entering Array");
-    SETFLAG(info, def);
+    if(def->inheritance == COYAML_INH_REPLACE_DEFAULT) {
+        if(!info->event.data.sequence_start.tag
+            || strcmp(info->event.data.sequence_start.tag, "!Append")) {
+            SETFLAG(info, def);
+        }
+    } else if(def->inheritance == COYAML_INH_APPEND_DEFAULT) {
+        if(info->event.data.sequence_start.tag
+            && !strcmp(info->event.data.sequence_start.tag, "!Replace")) {
+            SETFLAG(info, def);
+        } else {
+            SETFLAG_1(info, def);
+        }
+    }
     SYNTAX_ERROR(info->event.type == YAML_SEQUENCE_START_EVENT);
     CHECK(coyaml_next(info));
     coyaml_arrayel_head_t *lastel = NULL;

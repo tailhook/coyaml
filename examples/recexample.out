@@ -1,5 +1,9 @@
 Logging:
-  handlers: []
+  handlers:
+  - max-size: 1048576
+    filename: errors.log
+    period: 86400
+    level: 3
   noninheritedlist:
   - ein
   - zwei
@@ -30,14 +34,14 @@ Logging:
       children: {}
     game:
       handlers:
-      - max-size: 1048576
-        filename: errors.log
-        period: 86400
-        level: 3
       - max-size: 10485760
         filename: game.log
         period: 86400
         level: 8
+      - max-size: 1048576
+        filename: errors.log
+        period: 86400
+        level: 3
       noninheritedlist:
       - one
       level: 5
@@ -51,7 +55,15 @@ Logging:
         dateformat: '%Y%m%d%H%M%S'
       children:
         rating:
-          handlers: []
+          handlers:
+          - max-size: 10485760
+            filename: game.log
+            period: 86400
+            level: 8
+          - max-size: 1048576
+            filename: errors.log
+            period: 86400
+            level: 3
           noninheritedlist: []
           level: 6
           inheritedlist:
@@ -64,7 +76,15 @@ Logging:
             dateformat: '%Y%m%d%H%M%S'
           children: {}
         battle:
-          handlers: []
+          handlers:
+          - max-size: 10485760
+            filename: game.log
+            period: 86400
+            level: 8
+          - max-size: 1048576
+            filename: errors.log
+            period: 86400
+            level: 3
           noninheritedlist: []
           level: 5
           inheritedlist:

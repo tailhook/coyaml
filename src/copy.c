@@ -18,7 +18,7 @@ static int copy_group(coyaml_context_t *ctx, coyaml_usertype_t *def,
         if(tr->prop->type->ident == COYAML_GROUP) {
             copy_group(ctx, def, source, target);
         } else if(tr->prop->flagoffset
-            && !target->filled[tr->prop->flagoffset]
+            &&  target->filled[tr->prop->flagoffset] <= 0
             &&  source->filled[tr->prop->flagoffset]) {
             CHECK(tr->prop->type->copy(ctx,
                 tr->prop, src,
@@ -52,7 +52,17 @@ int coyaml_array_copy(coyaml_context_t *ctx,
     struct coyaml_array_s *sprop, void *source,
     struct coyaml_array_s *tprop, void *target)
 {
-    printf("ARRAY COPY\n");
+    coyaml_arrayel_head_t *m = REF(target, tprop, coyaml_arrayel_head_t *);
+    for(;m && m->next; m = m->next);
+    if(m) {
+        m->next = REF(source, sprop, coyaml_arrayel_head_t *);
+    } else {
+        REF(target, tprop, coyaml_arrayel_head_t *) \
+            = REF(source, sprop, coyaml_arrayel_head_t *);
+    }
+    LEN(target, tprop, coyaml_arrayel_head_t *) \
+        += LEN(source, sprop, coyaml_arrayel_head_t *);
+    
     return 0;
 }
 
@@ -60,7 +70,16 @@ int coyaml_mapping_copy(coyaml_context_t *ctx,
     struct coyaml_mapping_s *sprop, void *source,
     struct coyaml_mapping_s *tprop, void *target)
 {
-    printf("MAPPING COPY\n");
+    coyaml_mappingel_head_t *m = REF(target, tprop, coyaml_mappingel_head_t *);
+    for(;m && m->next; m = m->next);
+    if(m) {
+        m->next = REF(source, sprop, coyaml_mappingel_head_t *);
+    } else {
+        REF(target, tprop, coyaml_mappingel_head_t *) \
+            = REF(source, sprop, coyaml_mappingel_head_t *);
+    }
+    LEN(target, tprop, coyaml_mappingel_head_t *) \
+        += LEN(source, sprop, coyaml_mappingel_head_t *);
     return 0;
 }
 
