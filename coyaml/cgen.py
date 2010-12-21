@@ -56,7 +56,39 @@ def bitmask(*args):
         if v:
             res |= 1 << i
     return res
+    
+class StructInfo(object):
+    def __init__(self, name):
+        self.name = name
+        self.flagcount = 0
+        self.a_ptr = Typename(name + ' *')
+        self.a_name = Ident(name)
+    
+    def nextflag(self):
+        val = self.flagcount
+        self.flagcount += 1
+        return val
+        
+class ArrayEl(object):
 
+    def __init__(self, name):
+        self.name = name
+        self.a_ptr = Typename(name + ' *')
+        self.a_name = Ident(name)
+    
+    def nextflag(self):
+        return 0
+        
+class MappingEl(object):
+
+    def __init__(self, name):
+        self.name = name
+        self.a_ptr = Typename(name + ' *')
+        self.a_name = Ident(name)
+
+    def nextflag(self):
+        return 0
+        
 class GenCCode(object):
 
     def __init__(self, cfg):
@@ -317,7 +349,9 @@ class GenCCode(object):
     def visit_hier(self, ast):
         # Visits hierarchy to set appropriate structures and member
         # names for `offsetof()` in `baseoffset`
-        self.print_functions = set()
+        ast(VSpace())
+        for sname in self.cfg.types:
+            self._visit_usertype(sname, root=ast)
         ast(VSpace())
         tranname = Ident('transitions_{0}'.format(self.lasttran))
         self.lasttran += 1
@@ -328,7 +362,7 @@ class GenCCode(object):
                 Arr(ast.block()),
                 static=True, array=(None,))) as tran:
             for k, v in self.cfg.data.items():
-                self._visit_hier(v, k, self.prefix+'_main_t', '',
+                self._visit_hier(v, k, StructInfo(self.prefix+'_main_t'),
                     Member('cfg', varname(k)),
                     dast=dast, root=ast)
                 tran(StrValue(
@@ -353,8 +387,73 @@ class GenCCode(object):
                     Int(len(self.states['group'].content)-1))),
                 Ident('cfg'), Ident('mode'),
                 ])))
+                
+    def _visit_usertype(self, name, root):
+        struct = StructInfo(self.prefix+'_'+name+'_t')
+        utype = self.cfg.types[name]
+        tranname = Ident('transitions_{0}'.format(self.lasttran))
+        self.lasttran += 1
+        with root.zone('transitions')(VarAssign('coyaml_transition_t',
+                tranname, Arr(root.block()),
+                static=True, array=(None,))) as tran:
+            defname = self.prefix+'_defaults_'+name
+            with root.zone('default_funcs')(Function('int', defname, [
+                Param(struct.a_ptr, 'cfg'),
+                ], root.block())) as cdef:
+                for k, v in utype.members.items():
+                    self._visit_hier(v, k, struct,
+                        Member('cfg', varname(k)),
+                        dast=cdef, root=root)
+                    if k.startswith('_'):
+                        continue
+                    tran(StrValue(
+                        symbol=String(k),
+                        prop=Coerce('coyaml_placeholder_t *',
+                            v.prop_ref),
+                        ))
+                tran(StrValue(symbol=Ident('NULL'),
+                    prop=Ident('NULL')))
+        self.states['group'](StrValue(
+            type=Ref(Ident('coyaml_group_type')),
+            baseoffset=Int(0),
+            transitions=tranname,
+            ))
+        uzone = root.zone('usertypes')
+        if hasattr(utype, 'tags'):
+            tagvar = self.prefix+'_'+name+'_tags'
+            uzone(VarAssign('coyaml_tag_t', tagvar, Arr([
+                StrValue(tagname=String('!'+k), tagvalue=Int(v))
+                for k, v in utype.tags.items() ]
+                + [ StrValue(tagname=NULL, tagvalue=Int(0)) ]),
+                static=True, array=(None,)))
+            default_tag = getattr(utype, 'defaulttag', -1)
+        else:
+            tagvar = 'NULL'
+            default_tag = -1
+        uzone(Func('int', defname, [ Param(struct.a_ptr, 'cfg') ]))
+        conv_fun = getattr(utype, 'convert', None)
+        if conv_fun is not None and conv_fun not in builtin_conversions:
+            uzone(Func('int', utype.convert, [
+                Param('coyaml_parseinfo_t *', 'info'),
+                Param('char *', 'value'),
+                Param('coyaml_group_t *', 'group'),
+                Param(self.prefix+'_'+name+'_t *', 'target'),
+                ]))
+            uzone(VSpace())
+        uzone(VarAssign('coyaml_usertype_t',
+            self.prefix+'_'+name+'_def', StrValue(
+                type=Ref(Ident('coyaml_usertype_type')),
+                baseoffset=Int(0),
+                flagcount=Int(struct.flagcount),
+                group=Ref(Subscript(Ident(self.prefix+'_group_vars'),
+                    Int(len(self.states['group'].content)-1))),
+                tags=Ident(tagvar),
+                default_tag=Int(default_tag),
+                scalar_fun=Coerce('coyaml_convert_fun', conv_fun)
+                    if conv_fun else NULL,
+            ), static=True))
 
-    def _visit_hier(self, item, name, struct_name, pws, mem, dast, root):
+    def _visit_hier(self, item, name, struct, mem, dast, root):
         if isinstance(item, dict):
             tranname = Ident('transitions_{0}'.format(self.lasttran))
             self.lasttran += 1
@@ -362,7 +461,7 @@ class GenCCode(object):
                 tranname, Arr(root.block()),
                 static=True, array=(None,))) as tran:
                 for k, v in item.items():
-                    self._visit_hier(v, k, struct_name, pws+'  ',
+                    self._visit_hier(v, k, struct,
                         Dot(mem, varname(k)), dast=dast, root=root)
                     if k.startswith('_'): continue
                     tran(StrValue(
@@ -373,7 +472,7 @@ class GenCCode(object):
                     prop=Ident('NULL')))
             self.states['group'](StrValue(
                 type=Ref(Ident('coyaml_group_type')),
-                baseoffset=Call('offsetof', [ Ident(struct_name),
+                baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(mem) ]),
                 transitions=tranname,
                 ))
@@ -381,7 +480,7 @@ class GenCCode(object):
             item.prop_ref = Ref(Subscript(Ident(self.prefix+'_group_vars'),
                 Int(len(self.states['group'].content)-1)))
         elif item.__class__ in placeholders:
-            item.struct_name = struct_name
+            item.struct_name = struct.name
             item.member_path = mem
             if hasattr(item, 'default_'):
                 asttyp = cfgtoast[item.__class__]
@@ -390,101 +489,35 @@ class GenCCode(object):
                     lenmem = mem.__class__(mem.source, mem.name.value + '_len')
                     dast(Statement(Assign(lenmem, Int(len(item.default_)))))
             if not name.startswith('_'):
-                self.mkstate(item, struct_name, mem)
+                self.mkstate(item, struct, mem)
         elif isinstance(item, load.Bool):
-            item.struct_name = struct_name
+            item.struct_name = struct.name
             item.member_path = mem
             if hasattr(item, 'default_'):
                 dast(Statement(Assign(mem, Ident('TRUE')
                     if item.default_ else Ident('FALSE'))))
             if not name.startswith('_'):
-                self.mkstate(item, struct_name, mem)
+                self.mkstate(item, struct, mem)
         elif isinstance(item, load.Struct):
-            item.struct_name = struct_name
+            item.struct_name = struct.name
             item.member_path = mem
-            sname = self.prefix+'_'+item.type+'_t'
-            fname = self.prefix+'_print_'+item.type
-            if fname not in self.print_functions:
-                self.print_functions.add(fname)
-                typname = self.prefix+'_'+item.type+'_t'
-                utype = self.cfg.types[item.type]
-                tranname = Ident('transitions_{0}'.format(self.lasttran))
-                self.lasttran += 1
-                with root.zone('transitions')(VarAssign('coyaml_transition_t',
-                        tranname, Arr(root.block()),
-                        static=True, array=(None,))) as tran:
-                    defname = self.prefix+'_defaults_'+item.type
-                    with root.zone('default_funcs')(Function('int', defname, [
-                        Param(typname+' *', 'cfg'),
-                        ], root.block())) as cdef:
-                        for k, v in utype.members.items():
-                            self._visit_hier(v, k, typname,
-                                '', Member('cfg', varname(k)),
-                                dast=cdef, root=root)
-                            if k.startswith('_'):
-                                continue
-                            tran(StrValue(
-                                symbol=String(k),
-                                prop=Coerce('coyaml_placeholder_t *',
-                                    v.prop_ref),
-                                ))
-                        tran(StrValue(symbol=Ident('NULL'),
-                            prop=Ident('NULL')))
-                self.states['group'](StrValue(
-                    type=Ref(Ident('coyaml_group_type')),
-                    baseoffset=Call('offsetof', [ Ident(struct_name),
-                        mem2dotname(mem) ]),
-                    transitions=tranname,
-                    ))
-                uzone = root.zone('usertypes')
-                if hasattr(utype, 'tags'):
-                    tagvar = self.prefix+'_'+item.type+'_tags'
-                    uzone(VarAssign('coyaml_tag_t', tagvar, Arr([
-                        StrValue(tagname=String('!'+k), tagvalue=Int(v))
-                        for k, v in utype.tags.items() ]
-                        + [ StrValue(tagname=NULL, tagvalue=Int(0)) ]),
-                        static=True, array=(None,)))
-                    default_tag = getattr(utype, 'defaulttag', -1)
-                else:
-                    tagvar = 'NULL'
-                    default_tag = -1
-                uzone(Func('int', defname, [ Param(typname+' *', 'cfg') ]))
-                conv_fun = getattr(utype, 'convert', None)
-                if conv_fun is not None and conv_fun not in builtin_conversions:
-                    uzone(Func('int', utype.convert, [
-                        Param('coyaml_parseinfo_t *', 'info'),
-                        Param('char *', 'value'),
-                        Param('coyaml_group_t *', 'group'),
-                        Param(self.prefix+'_'+item.type+'_t *', 'target'),
-                        ]))
-                    uzone(VSpace())
-                uzone(VarAssign('coyaml_usertype_t',
-                    self.prefix+'_'+item.type+'_def', StrValue(
-                        type=Ref(Ident('coyaml_usertype_type')),
-                        baseoffset=Int(0),
-                        group=Ref(Subscript(Ident(self.prefix+'_group_vars'),
-                            Int(len(self.states['group'].content)-1))),
-                        tags=Ident(tagvar),
-                        default_tag=Int(default_tag),
-                        scalar_fun=Coerce('coyaml_convert_fun', conv_fun)
-                            if conv_fun else NULL,
-                    ), static=True))
             if dast:
                 dast(Statement(Call(self.prefix+'_defaults_'+item.type, [
                     Ref(mem) ])))
             self.states['custom'](StrValue(
                 type=Ref(Ident('coyaml_custom_type')),
-                baseoffset=Call('offsetof', [ Ident(struct_name),
+                baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(mem) ]),
+                flagoffset=Int(struct.nextflag()),
                 usertype=Ref(Ident(self.prefix+'_'+item.type+'_def')),
                 ))
             item.prop_func = 'coyaml_custom'
             item.prop_ref = Ref(Subscript(Ident(self.prefix+'_custom_vars'),
                 Int(len(self.states['custom'].content)-1)))
         elif isinstance(item, load.Mapping):
-            item.struct_name = struct_name
+            item.struct_name = struct.name
             item.member_path = mem
-            mstr = (self.prefix+'_m_'+typename(item.key_element)
+            mstr = MappingEl(self.prefix+'_m_'+typename(item.key_element)
                     +'_'+typename(item.value_element)+'_t')
             self.mkstate(item.key_element, mstr,
                 Member(Ident('item'), Ident('key')))
@@ -493,18 +526,16 @@ class GenCCode(object):
                 self.mkstate(item.value_element, mstr,
                     Member(Ident('item'), Ident('value')))
             elif not isinstance(item.key_element, load.Struct):
-                self._visit_hier(item.value_element, None, '{0}_m_{1}_{2}_t'
-                    .format(self.prefix, typename(item.key_element),
-                    typename(item.value_element)), pws + '    ',
+                self._visit_hier(item.value_element, None, mstr,
                     Member(Ident('item'), 'value'),
                     dast=None, root=root)
             else:
                 raise NotImplementedError(item.key_element)
             self.states['mapping'](StrValue(
                 type=Ref(Ident('coyaml_mapping_type')),
-                baseoffset=Call('offsetof', [ Ident(struct_name),
+                baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(mem) ]),
-                element_size=Call('sizeof', [ Typename(mstr) ]),
+                element_size=Call('sizeof', [ Typename(mstr.name) ]),
                 key_prop=Coerce('coyaml_placeholder_t *',
                     item.key_element.prop_ref),
                 key_defaults=Coerce('coyaml_defaults_fun',
@@ -520,21 +551,21 @@ class GenCCode(object):
             item.prop_ref = Ref(Subscript(Ident(self.prefix+'_mapping_vars'),
                 Int(len(self.states['mapping'].content)-1)))
         elif isinstance(item, load.Array):
-            item.struct_name = struct_name
+            item.struct_name = struct.name
             item.member_path = mem
-            astr = self.prefix+'_a_'+typename(item.element)+'_t'
+            astr = ArrayEl(self.prefix+'_a_'+typename(item.element)+'_t')
             if not isinstance(item.element, load.Struct):
                 self.mkstate(item.element, astr,
                     Member(Ident('item'), Ident('value')))
             else:
-                self._visit_hier(item.element, None, astr, pws + '  ',
+                self._visit_hier(item.element, None, astr,
                     Member(Ident('item'), 'value'),
                     dast=None, root=root)
             self.states['array'](StrValue(
                 type=Ref(Ident('coyaml_array_type')),
-                baseoffset=Call('offsetof', [ Ident(struct_name),
+                baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(mem) ]),
-                element_size=Call('sizeof', [ Typename(astr) ]),
+                element_size=Call('sizeof', [ Typename(astr.name) ]),
                 element_prop=Coerce('coyaml_placeholder_t *',
                     item.element.prop_ref),
                 element_defaults=Coerce('coyaml_defaults_fun',
@@ -547,12 +578,13 @@ class GenCCode(object):
         else:
             raise NotImplementedError(item)
 
-    def mkstate(self, item, struct_name, member):
+    def mkstate(self, item, struct, member):
         if isinstance(item, load.Int):
             self.states['int'](StrValue(
                 type=Ref(Ident('coyaml_int_type')),
-                baseoffset=Call('offsetof', [ Ident(struct_name),
+                baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
+                flagoffset=Int(struct.nextflag()),
                 min=Int(getattr(item, 'min', 0)),
                 max=Int(getattr(item, 'max', 0)),
                 bitmask=Int(bitmask(
@@ -565,8 +597,9 @@ class GenCCode(object):
         elif isinstance(item, load.UInt):
             self.states['uint'](StrValue(
                 type=Ref(Ident('coyaml_uint_type')),
-                baseoffset=Call('offsetof', [ Ident(struct_name),
+                baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
+                flagoffset=Int(struct.nextflag()),
                 min=Int(getattr(item, 'min', 0)),
                 max=Int(getattr(item, 'max', 0)),
                 bitmask=Int(bitmask(
@@ -579,8 +612,9 @@ class GenCCode(object):
         elif isinstance(item, load.Bool):
             self.states['bool'](StrValue(
                 type=Ref(Ident('coyaml_bool_type')),
-                baseoffset=Call('offsetof', [ Ident(struct_name),
-                    mem2dotname(member) ])
+                baseoffset=Call('offsetof', [ struct.a_name,
+                    mem2dotname(member) ]),
+                flagoffset=Int(struct.nextflag()),
                 ))
             item.prop_func = 'coyaml_bool'
             item.prop_ref = Ref(Subscript(Ident(self.prefix+'_bool_vars'),
@@ -588,8 +622,9 @@ class GenCCode(object):
         elif isinstance(item, load.String):
             self.states['string'](StrValue(
                 type=Ref(Ident('coyaml_string_type')),
-                baseoffset=Call('offsetof', [ Ident(struct_name),
+                baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
+                flagoffset=Int(struct.nextflag()),
                 ))
             item.prop_func = 'coyaml_string'
             item.prop_ref = Ref(Subscript(Ident(self.prefix+'_string_vars'),
@@ -597,8 +632,9 @@ class GenCCode(object):
         elif isinstance(item, load.File):
             self.states['file'](StrValue(
                 type=Ref(Ident('coyaml_file_type')),
-                baseoffset=Call('offsetof', [ Ident(struct_name),
+                baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
+                flagoffset=Int(struct.nextflag()),
                 bitmask=Int(bitmask(hasattr(item, 'warn_outside'))),
                 check_existence=cbool(getattr(item, 'check_existence', False)),
                 check_dir=cbool(getattr(item, 'check_dir', False)),
@@ -611,8 +647,9 @@ class GenCCode(object):
         elif isinstance(item, load.Dir):
             self.states['dir'](StrValue(
                 type=Ref(Ident('coyaml_dir_type')),
-                baseoffset=Call('offsetof', [ Ident(struct_name),
+                baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
+                flagoffset=Int(struct.nextflag()),
                 check_existence=cbool(getattr(item, 'check_existence', False)),
                 check_dir=cbool(getattr(item, 'check_dir', False)),
                 ))

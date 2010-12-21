@@ -102,7 +102,8 @@ typedef struct coyaml_valuetype_s {
 
 #define COYAML_PLACEHOLDER \
     coyaml_valuetype_t *type; \
-    int baseoffset;
+    int baseoffset; \
+    int flagoffset;
     
 typedef struct coyaml_placeholder_s {
     COYAML_PLACEHOLDER
@@ -127,6 +128,7 @@ extern coyaml_valuetype_t coyaml_group_type;
 
 typedef struct coyaml_usertype_s {
     COYAML_PLACEHOLDER
+    int flagcount;
     int default_tag;
     coyaml_tag_t *tags;
     struct coyaml_group_s *group;
