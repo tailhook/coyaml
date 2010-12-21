@@ -13,7 +13,8 @@ static int copy_group(coyaml_context_t *ctx, coyaml_usertype_t *def,
 {
     void *src = source->object;
     void *trg = target->object;
-    for(coyaml_transition_t *tr = def->group->transitions;tr->symbol; ++tr) {
+    for(coyaml_transition_t *tr = def->group->transitions;
+        tr && tr->symbol; ++tr) {
         if(tr->prop->type->ident == COYAML_GROUP) {
             copy_group(ctx, def, source, target);
         } else if(tr->prop->flagoffset
@@ -22,6 +23,7 @@ static int copy_group(coyaml_context_t *ctx, coyaml_usertype_t *def,
             CHECK(tr->prop->type->copy(ctx,
                 tr->prop, src,
                 tr->prop, trg));
+            target->filled[tr->prop->flagoffset] = 1;
         }
     }
     return 0;
@@ -51,7 +53,7 @@ int coyaml_array_copy(coyaml_context_t *ctx,
     struct coyaml_array_s *tprop, void *target)
 {
     printf("ARRAY COPY\n");
-    return -1;
+    return 0;
 }
 
 int coyaml_mapping_copy(coyaml_context_t *ctx,
@@ -59,7 +61,7 @@ int coyaml_mapping_copy(coyaml_context_t *ctx,
     struct coyaml_mapping_s *tprop, void *target)
 {
     printf("MAPPING COPY\n");
-    return -1;
+    return 0;
 }
 
 int coyaml_int_copy(coyaml_context_t *ctx,

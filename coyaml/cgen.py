@@ -542,6 +542,8 @@ class GenCCode(object):
                 type=Ref(Ident('coyaml_mapping_type')),
                 baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(mem) ]),
+                flagoffset=Int(struct.nextflag())
+                    if hasattr(struct, 'nextflag') else Int(0),
                 element_size=Call('sizeof', [ Typename(mstr.name) ]),
                 key_prop=Coerce('coyaml_placeholder_t *',
                     item.key_element.prop_ref),
@@ -572,6 +574,8 @@ class GenCCode(object):
                 type=Ref(Ident('coyaml_array_type')),
                 baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(mem) ]),
+                flagoffset=Int(struct.nextflag())
+                    if hasattr(struct, 'nextflag') else Int(0),
                 element_size=Call('sizeof', [ Typename(astr.name) ]),
                 element_prop=Coerce('coyaml_placeholder_t *',
                     item.element.prop_ref),

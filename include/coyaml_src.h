@@ -47,9 +47,11 @@ typedef struct coyaml_parseinfo_s {
     // Merge structures
     struct obstack mappieces;
     struct coyaml_mapmerge_s *top_map;
-    // inheritance, placed in same obstack
-    struct coyaml_marks_s *marks;
     // End merge
+    // Inheritance marks
+    struct coyaml_marks_s *last_mark;
+    struct coyaml_marks_s *top_mark;
+    // End marks
     struct coyaml_stack_s *root_file;
     struct coyaml_stack_s *current_file;
 } coyaml_parseinfo_t;

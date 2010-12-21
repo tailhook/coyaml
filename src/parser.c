@@ -46,9 +46,9 @@
     return -1; }
 #define COYAML_DEBUG(message, ...) if(info->debug) { \
     fprintf(stderr, "COYAML: " message "\n", ##__VA_ARGS__); }
-#define SETFLAG(info, def) if((info)->marks && (def)->flagoffset) { \
-    COYAML_ASSERT(!((info)->marks->filled[(def)->flagoffset])); \
-    (info)->marks->filled[(def)->flagoffset] = 1; \
+#define SETFLAG(info, def) if((info)->top_mark && (def)->flagoffset) { \
+    COYAML_ASSERT(!((info)->top_mark->filled[(def)->flagoffset])); \
+    (info)->top_mark->filled[(def)->flagoffset] = 1; \
     }
 
 #define obstack_alloc_failed_handler() longjmp(info->recover);
@@ -541,7 +541,8 @@ int coyaml_readfile(coyaml_context_t *ctx) {
     sinfo.anchor_first = NULL;
     sinfo.anchor_last = NULL;
     sinfo.top_map = NULL;
-    sinfo.marks = NULL;
+    sinfo.last_mark = NULL;
+    sinfo.top_mark = NULL;
     sinfo.event.type = YAML_NO_EVENT;
     obstack_init(&sinfo.anchors);
     obstack_init(&sinfo.mappieces);
@@ -558,6 +559,13 @@ int coyaml_readfile(coyaml_context_t *ctx) {
     ctx->parseinfo = &sinfo;
     int result = coyaml_root(info, ctx->root_group, ctx->target);
     ctx->parseinfo = NULL;
+    
+    for(coyaml_marks_t *m = sinfo.last_mark; m; m = m->prev) {
+        if(m->parent && m->parent->type == m->type) {
+            COYAML_ASSERT(m->prop);
+            CHECK(coyaml_copier(info->context, m->prop, m->parent, m));
+        }
+    }
 
     for(coyaml_anchor_t *a = sinfo.anchor_first; a; a = a->next) {
         for(yaml_event_t *ev = a->events; ev->type != YAML_NO_EVENT; ++ev) {
@@ -869,20 +877,19 @@ int coyaml_usertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *targ
     } else {
         SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
         int fsize = sizeof(coyaml_marks_t) + sizeof(char)*def->flagcount;
-        coyaml_marks_t *marks = obstack_alloc(&info->mappieces, fsize);
+        coyaml_marks_t *marks = obstack_alloc(&info->context->pieces, fsize);
         bzero(marks, fsize);
         marks->type = def->ident;
         marks->object = target;
-        marks->prev = info->marks;
-        info->marks = marks;
+        marks->prop = def;
+        marks->parent = info->top_mark;
+        info->top_mark = marks;
         
         CHECK(coyaml_group(info, def->group, target));
         
-        if(marks->prev && marks->prev->type == def->ident) {
-            CHECK(coyaml_copier(info->context, def, marks->prev, marks));
-        }
-        info->marks = marks->prev;
-        // marks will be freed with nearest mapping automatically
+        info->top_mark = marks->parent;
+        marks->prev = info->last_mark;
+        info->last_mark = marks;
     }
     COYAML_DEBUG("Leaving Usertype");
     return 0;
@@ -1035,7 +1042,7 @@ coyaml_context_t *coyaml_context_init(coyaml_context_t *inp) {
         ctx->free_object = FALSE;
     }
     ctx->parse_vars = TRUE;
-    ctx->parseinfo = FALSE;
+    ctx->parseinfo = NULL;
     obstack_init(&ctx->pieces);
     coyaml_set_string(ctx, "coyaml_version",
         COYAML_VERSION, strlen(COYAML_VERSION));

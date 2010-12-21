@@ -33,7 +33,9 @@ typedef struct coyaml_mapmerge_s {
 
 // Marks of filled fields for each structure, used for inheritance
 typedef struct coyaml_marks_s {
+    struct coyaml_marks_s *parent;
     struct coyaml_marks_s *prev;
+    coyaml_placeholder_t *prop;
     void *object;
     int type;
     char filled[];

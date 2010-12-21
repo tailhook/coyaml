@@ -36,5 +36,6 @@ Logging:
       children:
         rating:
           level: 6
+        battle: {}
     
       

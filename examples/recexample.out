@@ -20,7 +20,9 @@ Logging:
         level: 8
       noninheritedlist: []
       level: 7
-      inheritedlist: []
+      inheritedlist:
+      - one
+      - two
       propagate: yes
       formatter:
         format: '{message}'
@@ -41,6 +43,8 @@ Logging:
       level: 5
       inheritedlist:
       - three
+      - one
+      - two
       propagate: no
       formatter:
         format: '[{time}] {logger} {levelname} {message}'
@@ -50,9 +54,25 @@ Logging:
           handlers: []
           noninheritedlist: []
           level: 6
-          inheritedlist: []
+          inheritedlist:
+          - three
+          - one
+          - two
           propagate: yes
           formatter:
             format: '[{time}] {logger} {levelname} {message}'
-            dateformat: '%Y-%m-%d %H:%M:%S'
+            dateformat: '%Y%m%d%H%M%S'
+          children: {}
+        battle:
+          handlers: []
+          noninheritedlist: []
+          level: 5
+          inheritedlist:
+          - three
+          - one
+          - two
+          propagate: yes
+          formatter:
+            format: '[{time}] {logger} {levelname} {message}'
+            dateformat: '%Y%m%d%H%M%S'
           children: {}
