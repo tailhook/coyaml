@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 
+// Files' stack
 typedef struct coyaml_stack_s {
     struct coyaml_stack_s *prev;
     struct coyaml_stack_s *next;
@@ -13,12 +14,14 @@ typedef struct coyaml_stack_s {
     yaml_parser_t parser;
 } coyaml_stack_t;
 
+// Tree of mapping keys, determining their uniqueness
 typedef struct coyaml_mapkey_s {
     struct coyaml_mapkey_s *left;
     struct coyaml_mapkey_s *right;
     char name[];
 } coyaml_mapkey_t;
 
+// Stack of map merging, for `<<` operator
 typedef struct coyaml_mapmerge_s {
     struct coyaml_mapmerge_s *prev;
     coyaml_mapkey_t *keys;
@@ -27,6 +30,14 @@ typedef struct coyaml_mapmerge_s {
     int mergelevel;
     int mergelists;
 } coyaml_mapmerge_t;
+
+// Marks of filled fields for each structure, used for inheritance
+typedef struct coyaml_marks_s {
+    struct coyaml_marks_s *prev;
+    void *object;
+    int type;
+    char filled[];
+} coyaml_marks_t;
 
 int coyaml_group(coyaml_parseinfo_t *info,
     coyaml_group_t *prop, void *target);

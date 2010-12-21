@@ -38,13 +38,13 @@ Logging:
         level: 8
       noninheritedlist:
       - one
-      level: 8
+      level: 5
       inheritedlist:
       - three
       propagate: no
       formatter:
         format: '[{time}] {logger} {levelname} {message}'
-        dateformat: '%Y-%m-%d %H:%M:%S'
+        dateformat: '%Y%m%d%H%M%S'
       children:
         rating:
           handlers: []

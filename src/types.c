@@ -10,7 +10,7 @@ coyaml_valuetype_t coyaml_group_type = {
     yaml_parse: (coyaml_state_fun)coyaml_group,
     cli_parse: (coyaml_option_fun)NULL,
     emit: (coyaml_emit_fun)coyaml_group_emit,
-    copy: (coyaml_copy_fun)coyaml_group_copy
+    copy: NULL
     }; 
     
 coyaml_valuetype_t coyaml_usertype_type = {
@@ -19,7 +19,7 @@ coyaml_valuetype_t coyaml_usertype_type = {
     yaml_parse: (coyaml_state_fun)coyaml_usertype,
     cli_parse: (coyaml_option_fun)NULL,
     emit: (coyaml_emit_fun)coyaml_usertype_emit,
-    copy: (coyaml_copy_fun)coyaml_usertype_copy
+    copy: NULL
     };
     
 coyaml_valuetype_t coyaml_custom_type = {

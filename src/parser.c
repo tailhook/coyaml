@@ -15,6 +15,7 @@
 #include "vars.h"
 #include "parser.h"
 #include "util.h"
+#include "copy.h"
 
 #define SYNTAX_ERROR(cond) if(!(cond)) { \
     fprintf(stderr, "COYAML: Syntax error in config file ``%s'' " \
@@ -43,13 +44,12 @@
     info->event.start_mark.column, ##__VA_ARGS__); \
     errno = ECOYAML_VALUE_ERROR; \
     return -1; }
-#define COYAML_ASSERT(value) if(!(value)) { \
-    fprintf(stderr, "COAYML: Assertion " #value \
-        " at " __FILE__ ":%d failed\n", __LINE__); \
-    errno = ECOYAML_ASSERTION_ERROR; \
-    return -1; }
 #define COYAML_DEBUG(message, ...) if(info->debug) { \
     fprintf(stderr, "COYAML: " message "\n", ##__VA_ARGS__); }
+#define SETFLAG(info, def) if((info)->marks && (def)->flagoffset) { \
+    COYAML_ASSERT(!((info)->marks->filled[(def)->flagoffset])); \
+    (info)->marks->filled[(def)->flagoffset] = 1; \
+    }
 
 #define obstack_alloc_failed_handler() longjmp(info->recover);
 
@@ -541,6 +541,7 @@ int coyaml_readfile(coyaml_context_t *ctx) {
     sinfo.anchor_first = NULL;
     sinfo.anchor_last = NULL;
     sinfo.top_map = NULL;
+    sinfo.marks = NULL;
     sinfo.event.type = YAML_NO_EVENT;
     obstack_init(&sinfo.anchors);
     obstack_init(&sinfo.mappieces);
@@ -554,7 +555,9 @@ int coyaml_readfile(coyaml_context_t *ctx) {
         return -1;
     }
 
+    ctx->parseinfo = &sinfo;
     int result = coyaml_root(info, ctx->root_group, ctx->target);
+    ctx->parseinfo = NULL;
 
     for(coyaml_anchor_t *a = sinfo.anchor_first; a; a = a->next) {
         for(yaml_event_t *ev = a->events; ev->type != YAML_NO_EVENT; ++ev) {
@@ -620,6 +623,7 @@ int coyaml_group(coyaml_parseinfo_t *info, coyaml_group_t *def, void *target) {
 
 int coyaml_int(coyaml_parseinfo_t *info, coyaml_int_t *def, void *target) {
     COYAML_DEBUG("Entering Int");
+    SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     unsigned char *end;
     int val = strtol(info->event.data.scalar.value, (char **)&end, 0);
@@ -646,6 +650,7 @@ int coyaml_int(coyaml_parseinfo_t *info, coyaml_int_t *def, void *target) {
 
 int coyaml_float(coyaml_parseinfo_t *info, coyaml_float_t *def, void *target) {
     COYAML_DEBUG("Entering Float");
+    SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     unsigned char *end;
     double val = strtod(info->event.data.scalar.value, (char **)&end);
@@ -672,6 +677,7 @@ int coyaml_float(coyaml_parseinfo_t *info, coyaml_float_t *def, void *target) {
 
 int coyaml_bool(coyaml_parseinfo_t *info, coyaml_bool_t *def, void *target) {
     COYAML_DEBUG("Entering Bool");
+    SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     char *value = info->event.data.scalar.value;
     if(
@@ -698,6 +704,7 @@ int coyaml_bool(coyaml_parseinfo_t *info, coyaml_bool_t *def, void *target) {
 
 int coyaml_uint(coyaml_parseinfo_t *info, coyaml_uint_t *def, void *target) {
     COYAML_DEBUG("Entering Int");
+    SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     unsigned char *end;
     unsigned long val = strtol(info->event.data.scalar.value, (char **)&end, 0);
@@ -716,7 +723,7 @@ int coyaml_uint(coyaml_parseinfo_t *info, coyaml_uint_t *def, void *target) {
         "Value must be less than or equal to %d", def->max);
     VALUE_ERROR(!(def->bitmask&1) || val >= def->min,
         "Value must be greater than or equal to %d", def->min);
-    *(long *)(((char *)target)+def->baseoffset) = val;
+    *(unsigned long *)(((char *)target)+def->baseoffset) = val;
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving UInt");
     return 0;
@@ -724,6 +731,7 @@ int coyaml_uint(coyaml_parseinfo_t *info, coyaml_uint_t *def, void *target) {
 
 int coyaml_file(coyaml_parseinfo_t *info, coyaml_file_t *def, void *target) {
     COYAML_DEBUG("Entering File");
+    SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     // TODO: Implement more checks
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
@@ -738,6 +746,7 @@ int coyaml_file(coyaml_parseinfo_t *info, coyaml_file_t *def, void *target) {
 
 int coyaml_dir(coyaml_parseinfo_t *info, coyaml_dir_t *def, void *target) {
     COYAML_DEBUG("Entering Dir");
+    SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     // TODO: Implement more checks
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
@@ -752,6 +761,7 @@ int coyaml_dir(coyaml_parseinfo_t *info, coyaml_dir_t *def, void *target) {
 
 int coyaml_string(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) {
     COYAML_DEBUG("Entering String");
+    SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     char *tag = info ? info->event.data.scalar.tag : NULL;
     if(tag) {
@@ -858,7 +868,21 @@ int coyaml_usertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *targ
         }
     } else {
         SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
+        int fsize = sizeof(coyaml_marks_t) + sizeof(char)*def->flagcount;
+        coyaml_marks_t *marks = obstack_alloc(&info->mappieces, fsize);
+        bzero(marks, fsize);
+        marks->type = def->ident;
+        marks->object = target;
+        marks->prev = info->marks;
+        info->marks = marks;
+        
         CHECK(coyaml_group(info, def->group, target));
+        
+        if(marks->prev && marks->prev->type == def->ident) {
+            CHECK(coyaml_copier(info->context, def, marks->prev, marks));
+        }
+        info->marks = marks->prev;
+        // marks will be freed with nearest mapping automatically
     }
     COYAML_DEBUG("Leaving Usertype");
     return 0;
@@ -866,6 +890,7 @@ int coyaml_usertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *targ
 
 int coyaml_custom(coyaml_parseinfo_t *info, coyaml_custom_t *def, void *target) {
     COYAML_DEBUG("Entering Custom");
+    SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT
         || info->event.type == YAML_SEQUENCE_START_EVENT
         || info->event.type == YAML_SCALAR_EVENT);
@@ -877,6 +902,7 @@ int coyaml_custom(coyaml_parseinfo_t *info, coyaml_custom_t *def, void *target) 
 
 int coyaml_mapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *target) {
     COYAML_DEBUG("Entering Mapping");
+    SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
     CHECK(coyaml_next(info));
     coyaml_mappingel_head_t *lastel = NULL;
@@ -910,6 +936,7 @@ int coyaml_mapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *target
 
 int coyaml_array(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
     COYAML_DEBUG("Entering Array");
+    SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_SEQUENCE_START_EVENT);
     CHECK(coyaml_next(info));
     coyaml_arrayel_head_t *lastel = NULL;
@@ -1008,6 +1035,7 @@ coyaml_context_t *coyaml_context_init(coyaml_context_t *inp) {
         ctx->free_object = FALSE;
     }
     ctx->parse_vars = TRUE;
+    ctx->parseinfo = FALSE;
     obstack_init(&ctx->pieces);
     coyaml_set_string(ctx, "coyaml_version",
         COYAML_VERSION, strlen(COYAML_VERSION));

@@ -28,6 +28,7 @@ class YamlyType(yaml.YAMLObject):
 
     def __init__(self, default=None):
         self.default_ = default
+        self.inheritance = None
 
     @classmethod
     def from_yaml(cls, Loader, node):
@@ -40,6 +41,7 @@ class YamlyType(yaml.YAMLObject):
         return self
 
     def __setstate__(self, state):
+        self.inheritance = None
         default = state.pop('=', None)
         for k, v in state.items():
             setattr(self, varname(k), v)

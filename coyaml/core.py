@@ -47,6 +47,7 @@ class Usertype(object):
                 self.defaulttag = tags[tags['__default__']]
             self.tags = {k:v for k, v in tags.items()
                 if not k.startswith('__')}
+        self.inheritance = members.pop('__inheritance__', None)
         self.members = {k:v for k, v in members.items()
             if not k.startswith('__')}
         if isinstance(members.get('__value__'), Convert):

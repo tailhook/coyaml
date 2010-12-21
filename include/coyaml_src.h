@@ -47,6 +47,8 @@ typedef struct coyaml_parseinfo_s {
     // Merge structures
     struct obstack mappieces;
     struct coyaml_mapmerge_s *top_map;
+    // inheritance, placed in same obstack
+    struct coyaml_marks_s *marks;
     // End merge
     struct coyaml_stack_s *root_file;
     struct coyaml_stack_s *current_file;
@@ -71,7 +73,8 @@ typedef int (*coyaml_option_fun)(char *value,
 typedef int (*coyaml_emit_fun)(struct coyaml_printctx_s *ctx,
     struct coyaml_placeholder_s *prop, void *target);
 typedef int (*coyaml_copy_fun)(coyaml_context_t *ctx,
-    struct coyaml_placeholder_s *prop, void *source, void *target);
+    struct coyaml_placeholder_s *sprop, void *source,
+    struct coyaml_placeholder_s *tprop, void *target);
 typedef void (*coyaml_defaults_fun)(void *target);
 
 typedef enum {
@@ -128,7 +131,9 @@ extern coyaml_valuetype_t coyaml_group_type;
 
 typedef struct coyaml_usertype_s {
     COYAML_PLACEHOLDER
+    int ident;
     int flagcount;
+    int size;
     int default_tag;
     coyaml_tag_t *tags;
     struct coyaml_group_s *group;

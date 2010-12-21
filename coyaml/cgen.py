@@ -58,16 +58,20 @@ def bitmask(*args):
     return res
     
 class StructInfo(object):
-    def __init__(self, name):
+    def __init__(self, name, inheritance=False):
         self.name = name
-        self.flagcount = 0
+        self.flagcount = 1 if inheritance else 0
         self.a_ptr = Typename(name + ' *')
         self.a_name = Ident(name)
+        self.inheritance = inheritance
     
     def nextflag(self):
-        val = self.flagcount
-        self.flagcount += 1
-        return val
+        if self.inheritance:
+            val = self.flagcount
+            self.flagcount += 1
+            return val
+        else:
+            return 0
         
 class ArrayEl(object):
 
@@ -350,8 +354,8 @@ class GenCCode(object):
         # Visits hierarchy to set appropriate structures and member
         # names for `offsetof()` in `baseoffset`
         ast(VSpace())
-        for sname in self.cfg.types:
-            self._visit_usertype(sname, root=ast)
+        for i, sname in enumerate(self.cfg.types):
+            self._visit_usertype(sname, root=ast, index=i+1)
         ast(VSpace())
         tranname = Ident('transitions_{0}'.format(self.lasttran))
         self.lasttran += 1
@@ -388,9 +392,10 @@ class GenCCode(object):
                 Ident('cfg'), Ident('mode'),
                 ])))
                 
-    def _visit_usertype(self, name, root):
-        struct = StructInfo(self.prefix+'_'+name+'_t')
+    def _visit_usertype(self, name, root, index):
         utype = self.cfg.types[name]
+        struct = StructInfo(self.prefix+'_'+name+'_t',
+            inheritance=bool(utype.inheritance))
         tranname = Ident('transitions_{0}'.format(self.lasttran))
         self.lasttran += 1
         with root.zone('transitions')(VarAssign('coyaml_transition_t',
@@ -444,7 +449,9 @@ class GenCCode(object):
             self.prefix+'_'+name+'_def', StrValue(
                 type=Ref(Ident('coyaml_usertype_type')),
                 baseoffset=Int(0),
+                ident=Int(index),
                 flagcount=Int(struct.flagcount),
+                size=Call("sizeof", [ struct.a_name ]),
                 group=Ref(Subscript(Ident(self.prefix+'_group_vars'),
                     Int(len(self.states['group'].content)-1))),
                 tags=Ident(tagvar),
@@ -584,7 +591,8 @@ class GenCCode(object):
                 type=Ref(Ident('coyaml_int_type')),
                 baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
-                flagoffset=Int(struct.nextflag()),
+                flagoffset=Int(struct.nextflag())
+                    if item.inheritance else Int(0),
                 min=Int(getattr(item, 'min', 0)),
                 max=Int(getattr(item, 'max', 0)),
                 bitmask=Int(bitmask(
@@ -599,7 +607,8 @@ class GenCCode(object):
                 type=Ref(Ident('coyaml_uint_type')),
                 baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
-                flagoffset=Int(struct.nextflag()),
+                flagoffset=Int(struct.nextflag())
+                    if item.inheritance else Int(0),
                 min=Int(getattr(item, 'min', 0)),
                 max=Int(getattr(item, 'max', 0)),
                 bitmask=Int(bitmask(
@@ -614,7 +623,8 @@ class GenCCode(object):
                 type=Ref(Ident('coyaml_bool_type')),
                 baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
-                flagoffset=Int(struct.nextflag()),
+                flagoffset=Int(struct.nextflag())
+                    if item.inheritance else Int(0),
                 ))
             item.prop_func = 'coyaml_bool'
             item.prop_ref = Ref(Subscript(Ident(self.prefix+'_bool_vars'),
@@ -624,7 +634,8 @@ class GenCCode(object):
                 type=Ref(Ident('coyaml_string_type')),
                 baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
-                flagoffset=Int(struct.nextflag()),
+                flagoffset=Int(struct.nextflag())
+                    if item.inheritance else Int(0),
                 ))
             item.prop_func = 'coyaml_string'
             item.prop_ref = Ref(Subscript(Ident(self.prefix+'_string_vars'),
@@ -634,7 +645,8 @@ class GenCCode(object):
                 type=Ref(Ident('coyaml_file_type')),
                 baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
-                flagoffset=Int(struct.nextflag()),
+                flagoffset=Int(struct.nextflag())
+                    if item.inheritance else Int(0),
                 bitmask=Int(bitmask(hasattr(item, 'warn_outside'))),
                 check_existence=cbool(getattr(item, 'check_existence', False)),
                 check_dir=cbool(getattr(item, 'check_dir', False)),
@@ -649,7 +661,8 @@ class GenCCode(object):
                 type=Ref(Ident('coyaml_dir_type')),
                 baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
-                flagoffset=Int(struct.nextflag()),
+                flagoffset=Int(struct.nextflag())
+                    if item.inheritance else Int(0),
                 check_existence=cbool(getattr(item, 'check_existence', False)),
                 check_dir=cbool(getattr(item, 'check_dir', False)),
                 ))

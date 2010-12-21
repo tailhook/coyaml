@@ -17,7 +17,7 @@ reserved = {
 
 types = {
     load.Int: 'long',
-    load.UInt: 'size_t',
+    load.UInt: 'unsigned long',
     load.Float: 'double',
     load.Bool: 'int',
     load.VoidPtr: 'void *',
