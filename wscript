@@ -3,7 +3,7 @@
 import Options, Scripting
 
 APPNAME='coyaml'
-VERSION='0.3'
+VERSION='0.3.1'
 
 top = '.'
 out = 'build'

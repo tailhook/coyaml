@@ -95,7 +95,8 @@ SimpleHTTPServer:
       Listen for specified address. If path startswith "/" it's unix domain
       socket, otherwise it's tcp
   max-request-size: !Int
-    =: 4096
+    =: 4ki
+    max: 1Gi
     description: >
       Maximum size of request, including headers and body
   directory-indexes: !Array

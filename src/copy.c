@@ -8,15 +8,15 @@
 #define LEN(obj, prop, typ) *(int*)((char *)(obj) \
     + (prop)->baseoffset + sizeof(typ))
 
-static int copy_group(coyaml_context_t *ctx, coyaml_usertype_t *def,
+static int copy_group(coyaml_context_t *ctx, coyaml_group_t *group,
     coyaml_marks_t *source, coyaml_marks_t *target)
 {
     void *src = source->object;
     void *trg = target->object;
-    for(coyaml_transition_t *tr = def->group->transitions;
+    for(coyaml_transition_t *tr = group->transitions;
         tr && tr->symbol; ++tr) {
         if(tr->prop->type->ident == COYAML_GROUP) {
-            copy_group(ctx, def, source, target);
+            copy_group(ctx, (coyaml_group_t *)tr->prop, source, target);
         } else if(tr->prop->flagoffset
             &&  target->filled[tr->prop->flagoffset] <= 0
             &&  source->filled[tr->prop->flagoffset]) {
@@ -33,7 +33,7 @@ static int copy_group(coyaml_context_t *ctx, coyaml_usertype_t *def,
 int coyaml_copier(coyaml_context_t *ctx, coyaml_usertype_t *def,
     coyaml_marks_t *source, coyaml_marks_t *target)
 {
-    CHECK(copy_group(ctx, def, source, target));
+    CHECK(copy_group(ctx, def->group, source, target));
     return 0;
 }
 

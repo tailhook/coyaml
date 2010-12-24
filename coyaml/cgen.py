@@ -603,8 +603,8 @@ class GenCCode(object):
                     mem2dotname(member) ]),
                 flagoffset=Int(struct.nextflag())
                     if item.inheritance else Int(0),
-                min=Int(getattr(item, 'min', 0)),
-                max=Int(getattr(item, 'max', 0)),
+                min=Int(parse_int(getattr(item, 'min', 0))),
+                max=Int(parse_int(getattr(item, 'max', 0))),
                 bitmask=Int(bitmask(
                     hasattr(item, 'min'),
                     hasattr(item, 'max'),
@@ -619,8 +619,8 @@ class GenCCode(object):
                     mem2dotname(member) ]),
                 flagoffset=Int(struct.nextflag())
                     if item.inheritance else Int(0),
-                min=Int(getattr(item, 'min', 0)),
-                max=Int(getattr(item, 'max', 0)),
+                min=Int(parse_int(getattr(item, 'min', 0))),
+                max=Int(parse_int(getattr(item, 'max', 0))),
                 bitmask=Int(bitmask(
                     hasattr(item, 'min'),
                     hasattr(item, 'max'),
