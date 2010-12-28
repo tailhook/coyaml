@@ -1,43 +1,56 @@
+
 try:
-    import Task, TaskGen
+    from waflib import Task, TaskGen
 except ImportError:
     raise ImportError("Can use coyaml.waf only from wscript")
 
+def coyaml_decider(context, target):
+    if 'coyaml' in context.features:
+        return ['.h', '.c']
+    return []
+
 def coyaml_gen(task):
     from . import cgen, hgen, core, load, textast
+    name = getattr(task.generator, 'config_name', 'config')
     src = task.inputs[0]
     tgt = task.outputs[0]
-    cfg = core.Config(task.config_name, tgt.file_base())
+    cfg = core.Config(name, tgt.name[:-len(tgt.suffix())])
     with open(src.abspath(), 'rb') as f:
         load.load(f, cfg)
-    with open(tgt.abspath(task.env), 'wt', encoding='utf-8') as f:
+    with open(tgt.abspath(), 'wt', encoding='utf-8') as f:
         with textast.Ast() as ast:
             hgen.GenHCode(cfg).make(ast)
         f.write(str(ast))
     tgt = task.outputs[1]
-    cfg = core.Config(task.config_name, tgt.file_base())
+    cfg = core.Config(name, tgt.name[:-len(tgt.suffix())])
     with open(src.abspath(), 'rb') as f:
         load.load(f, cfg)
-    with open(tgt.abspath(task.env), 'wt', encoding='utf-8') as f:
+    with open(tgt.abspath(), 'wt', encoding='utf-8') as f:
         with textast.Ast() as ast:
             cgen.GenCCode(cfg).make(ast)
         f.write(str(ast))
-
-Task.task_type_from_func('coyaml_gen', color='BLUE',
-    func=coyaml_gen, ext_in='.yaml', ext_out=['.c', '.h'])
+        
+TaskGen.declare_chain(
+        name      = 'coyaml', 
+        rule      = coyaml_gen, 
+        ext_in    = '.yaml',
+        reentrant = False,
+        decider   = coyaml_decider,
+        before    = 'c',
+)
 
 @TaskGen.feature('coyaml')
-@TaskGen.before('apply_core')
+@TaskGen.after('apply_link')
 def process_coyaml(self):
-    filename = getattr(self, 'config', '')
-    if not filename:
-        raise ValueError('Cannot process coyaml without "config" attribute.')
-    node = self.path.find_resource(filename)
-    if not node:
-        raise ValueError('Cannot find {0} in {1}'
-            .format(filename, self.path.abspath()))
-    c_node = node.change_ext('.c')
-    h_node = node.change_ext('.h')
-    task = self.create_task('coyaml_gen', [node], [h_node, c_node])
-    task.config_name = getattr(self, 'config_name', 'config')
-    self.allnodes.append(c_node)
+    self.mappings['.h'] = lambda *k, **kw: None
+    link = []
+    coyaml = []
+    for t in self.tasks:
+        if t.__class__.__name__ == 'coyaml':
+            coyaml.append(t)
+        elif t.__class__.__name__ == 'cprogram':
+            link.append(t)
+            
+    for l in link:
+        for c in coyaml:
+            l.inputs.append(c.outputs[-1])
