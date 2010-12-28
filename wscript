@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import Options, Scripting
+from waflib.Build import BuildContext
+from waflib import Options
 import glob
 
 APPNAME='coyaml'
@@ -14,21 +15,14 @@ def options(opt):
     opt.load('compiler_c python')
     opt.add_option('--build-shared', action="store_true", dest="build_shared",
         help="Build shared library instead of static")
-    opt.add_option('--build-tests', action="store_true", dest="build_tests",
-        help="Build test cases")
-    opt.add_option('--run-tests', action="store_true", dest="run_tests",
-        help="Run test cases")
-    #opt.add_option('--python-lib', type="string", dest="python_lib",
-    #    help="Path to python site-packages directory",
-    #    default=distutils.sysconfig.get_python_lib())
-
 
 def configure(conf):
-    import coyaml.waf
     conf.load('compiler_c python')
     conf.check_python_version((3,0,0))
-    conf.env.BUILD_TESTS = Options.options.build_tests
-    conf.env.BUILD_SHARED = Options.options.build_shared
+    conf.env.CFLAGS = ['-O3']
+    
+    conf.setenv('test')
+    conf.env.CFLAGS = ['-g']
 
 def build(bld):
     bld(
@@ -46,7 +40,7 @@ def build(bld):
         target       = 'coyaml',
         includes     = ['include', 'src'],
         defines      = ['COYAML_VERSION="%s"' % VERSION],
-        cflags      = ['-std=c99'],
+        cflags       = ['-std=c99'],
         lib          = ['yaml'],
         )
     if bld.env.BUILD_SHARED:
@@ -61,64 +55,81 @@ def build(bld):
         source=glob.glob('coyaml/*.py'),
         install_path='${PYTHONDIR}/coyaml')
     bld.install_files('${PREFIX}/bin', 'scripts/coyaml', chmod=0o755)
-    if bld.env.BUILD_TESTS:
-        import coyaml.waf
-        bld.add_group()
-        bld(
-            features     = ['c', 'cprogram', 'coyaml'],
-            source       = [
-                'test/tinytest.c',
-                'test/tinyconfig.yaml',
-                ],
-            target       = 'tinytest',
-            includes     = ['include', 'test'],
-            cflags      = ['-std=c99'],
-            #libpath      = [bld.bdir+'/default'],
-            lib          = ['coyaml', 'yaml'],
-            )
-        bld(
-            features     = ['c', 'cprogram', 'coyaml'],
-            source       = [
-                'test/compr.c',
-                'test/comprehensive.yaml',
-                ],
-            target       = 'compr',
-            includes     = ['include', 'test'],
-            cflags      = ['-std=c99'],
-            #libpath      = [bld.bdir+'/default'],
-            lib          = ['coyaml', 'yaml'],
-            config_name  = 'cfg',
-            )
-        bld(
-            features     = ['c', 'cprogram', 'coyaml'],
-            source       = [
-                'test/recursive.c',
-                'test/recconfig.yaml',
-                ],
-            target       = 'recursive',
-            includes     = ['include', 'test'],
-            cflags      = ['-std=c99'],
-            #libpath      = [bld.bdir+'/default'],
-            lib          = ['coyaml', 'yaml'],
-            config_name  = 'cfg',
-            )
-        if Options.options.run_tests:
-            rule = ('./default/{0} -c ../examples/{1}.yaml -C -P > /tmp/{0};'
-                'diff -u /tmp/{0} ../examples/{1}.out')
-            bld(rule=rule.format('tinytest', 'tinyexample'),
-                always=True)
-            bld(rule='./default/compr -c ../examples/compexample.yaml'
-                ' --config-var clivar=CLI -C -P > /tmp/compr1;'
-                ' diff -u /tmp/compr1 ../examples/compexample.out',
-                always=True)
-            bld(rule='./default/compr -c ../examples/compexample.yaml'
-                ' -Dclivar=CLI > /tmp/compr2;'
-                ' diff -u /tmp/compr2 ../examples/compr.out',
-                always=True)
-            bld(rule=rule.format('recursive', 'recexample'),
-                always=True)
-
-def test(ctx):
-    Scripting.commands += ['build']
-    Options.options.build_tests = True
-    Options.options.run_tests = True
+    
+def build_tests(bld):
+    import coyaml.waf
+    build(bld)
+    bld.add_group()
+    bld(
+        features     = ['c', 'cprogram', 'coyaml'],
+        source       = [
+            'test/tinytest.c',
+            'test/tinyconfig.yaml',
+            ],
+        target       = 'tinytest',
+        includes     = ['include', 'test'],
+        libpath      = ['.'],
+        cflags       = ['-std=c99'],
+        lib          = ['coyaml', 'yaml'],
+        )
+    bld(
+        features     = ['c', 'cprogram', 'coyaml'],
+        source       = [
+            'test/compr.c',
+            'test/comprehensive.yaml',
+            ],
+        target       = 'compr',
+        includes     = ['include', 'test'],
+        libpath      = ['.'],
+        cflags       = ['-std=c99'],
+        lib          = ['coyaml', 'yaml'],
+        config_name  = 'cfg',
+        )
+    bld(
+        features     = ['c', 'cprogram', 'coyaml'],
+        source       = [
+            'test/recursive.c',
+            'test/recconfig.yaml',
+            ],
+        target       = 'recursive',
+        includes     = ['include', 'test'],
+        libpath      = ['.'],
+        cflags       = ['-std=c99'],
+        lib          = ['coyaml', 'yaml'],
+        config_name  = 'cfg',
+        )
+    bld.add_group()
+    diff = 'diff -u ${SRC[0].abspath()} ${SRC[1]}'
+    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} -C -P > ${TGT}',
+        source=['tinytest', 'examples/tinyexample.yaml'],
+        target='tinyexample.out',
+        always=True)
+    bld(rule=diff,
+        source=['examples/tinyexample.out', 'tinyexample.out'],
+        always=True)
+    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} --config-var clivar=CLI -C -P > ${TGT}',
+        source=['compr', 'examples/compexample.yaml'],
+        target='compexample.out',
+        always=True)
+    bld(rule=diff,
+        source=['examples/compexample.out', 'compexample.out'],
+        always=True)
+    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} -C -P > ${TGT}',
+        source=['recursive', 'examples/recexample.yaml'],
+        target='recexample.out',
+        always=True)
+    bld(rule=diff,
+        source=['examples/recexample.out', 'recexample.out'],
+        always=True)
+    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} -Dclivar=CLI > ${TGT}',
+        source=['compr', 'examples/compexample.yaml'],
+        target='compr.out',
+        always=True)
+    bld(rule=diff,
+        source=['examples/compr.out', 'compr.out'],
+        always=True)
+            
+class test(BuildContext):
+    cmd = 'test'
+    fun = 'build_tests'
+    variant = 'test'

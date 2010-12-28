@@ -7,9 +7,11 @@ except ImportError:
 def coyaml_decider(context, target):
     if 'coyaml' in context.features:
         return ['.h', '.c']
-    return []
+    return None
 
 def coyaml_gen(task):
+    if not task.outputs:
+        return
     from . import cgen, hgen, core, load, textast
     name = getattr(task.generator, 'config_name', 'config')
     src = task.inputs[0]
@@ -29,19 +31,30 @@ def coyaml_gen(task):
         with textast.Ast() as ast:
             cgen.GenCCode(cfg).make(ast)
         f.write(str(ast))
-        
-TaskGen.declare_chain(
+
+Task.task_type_from_func(
         name      = 'coyaml', 
-        rule      = coyaml_gen, 
+        func      = coyaml_gen, 
         ext_in    = '.yaml',
-        reentrant = False,
-        decider   = coyaml_decider,
+        ext_out   = ['.h', '.c'],
         before    = 'c',
 )
 
+@TaskGen.extension('.yaml')
+def process_coyaml(self, node):
+    if not 'coyaml' in self.features:
+        return
+    cfile = node.change_ext('.c')
+    self.create_task('coyaml', node,
+        [node.change_ext('.h'), cfile])
+    self.source.append(cfile)
+    
 @TaskGen.feature('coyaml')
-@TaskGen.after('apply_link')
 def process_coyaml(self):
+    pass
+
+"""
+    print("TASKS", self.tasks)
     self.mappings['.h'] = lambda *k, **kw: None
     link = []
     coyaml = []
@@ -54,3 +67,4 @@ def process_coyaml(self):
     for l in link:
         for c in coyaml:
             l.inputs.append(c.outputs[-1])
+"""
