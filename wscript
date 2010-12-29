@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from waflib.Build import BuildContext
-from waflib import Options
-import glob
+from waflib import Utils
 
 APPNAME='coyaml'
 VERSION='0.3.2'
@@ -52,7 +51,7 @@ def build(bld):
         'include/coyaml_src.h',
         ])
     bld(features='py',
-        source=glob.glob('coyaml/*.py'),
+        source=bld.path.ant_glob('coyaml/*.py'),
         install_path='${PYTHONDIR}/coyaml')
     bld.install_files('${PREFIX}/bin', 'scripts/coyaml', chmod=0o755)
     
@@ -133,3 +132,34 @@ class test(BuildContext):
     cmd = 'test'
     fun = 'build_tests'
     variant = 'test'
+    
+def dist(ctx):
+    ctx.excl = ['.waf*', '*.tar.bz2', '*.zip', 'build',
+        '.git*', '.lock*', '**/*.pyc']
+    ctx.algo = 'tar.bz2'
+    
+def make_pkgbuild(task):
+    import hashlib
+    task.outputs[0].write(Utils.subst_vars(task.inputs[0].read(), {
+        'VERSION': VERSION,
+        'DIST_MD5': hashlib.md5(task.inputs[1].read('rb')).hexdigest(),
+        }))
+        
+def archpkg(ctx):
+    from waflib import Options
+    Options.commands = ['dist', 'makepkg'] + Options.commands
+        
+def build_package(bld):
+    distfile = APPNAME + '-' + VERSION + '.tar.bz2'
+    bld(rule=make_pkgbuild,
+        source=['PKGBUILD.tpl', distfile, 'wscript'],
+        target='PKGBUILD')
+    bld(rule='cp ${SRC} ${TGT}', source=distfile, target='.')
+    bld.add_group()
+    bld(rule='makepkg -f', source=distfile)
+    bld(rule='makepkg --source', source=distfile)
+    
+class makepkg(BuildContext):
+    cmd = 'makepkg'
+    fun = 'build_package'
+    variant = 'archpkg'
