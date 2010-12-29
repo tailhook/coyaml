@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from waflib.Build import BuildContext
-from waflib import Utils
+from waflib import Utils, Options
 
 APPNAME='coyaml'
 VERSION='0.3.2'
@@ -19,6 +19,7 @@ def configure(conf):
     conf.load('compiler_c python')
     conf.check_python_version((3,0,0))
     conf.env.CFLAGS = ['-O3']
+    conf.env.BUILD_SHARED = Options.options.build_shared
     
     conf.setenv('test')
     conf.env.CFLAGS = ['-g']
@@ -157,9 +158,14 @@ def build_package(bld):
     bld(rule='cp ${SRC} ${TGT}', source=distfile, target='.')
     bld.add_group()
     bld(rule='makepkg -f', source=distfile)
-    bld(rule='makepkg --source', source=distfile)
+    bld.add_group()
+    bld(rule='makepkg -f --source', source=distfile)
     
 class makepkg(BuildContext):
     cmd = 'makepkg'
     fun = 'build_package'
     variant = 'archpkg'
+    
+def bumpver(ctx):
+    ctx.exec_command("sed -i.bak 's/v\d+\.{\d+}\.\d+/"+VERSION+"/'"
+        " examples/compr.out examples/compexample.out")

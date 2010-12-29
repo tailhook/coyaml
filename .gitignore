@@ -1,4 +1,6 @@
 *.pyc
+*.bak
 .waf*
 .lock-*
+coyaml-*.tar.bz2
 /build
