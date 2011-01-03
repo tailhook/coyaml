@@ -4,7 +4,7 @@ from waflib.Build import BuildContext
 from waflib import Utils, Options
 
 APPNAME='coyaml'
-VERSION='0.3.2'
+VERSION='0.3.3'
 
 top = '.'
 out = 'build'
@@ -18,13 +18,10 @@ def options(opt):
 def configure(conf):
     conf.load('compiler_c python')
     conf.check_python_version((3,0,0))
-    conf.env.CFLAGS = ['-O3']
     conf.env.BUILD_SHARED = Options.options.build_shared
-    
-    conf.setenv('test')
-    conf.env.CFLAGS = ['-g']
 
 def build(bld):
+    pass
     bld(
         features     = ['c', ('cshlib'
             if bld.env.BUILD_SHARED else 'cstlib')],
@@ -44,9 +41,9 @@ def build(bld):
         lib          = ['yaml'],
         )
     if bld.env.BUILD_SHARED:
-        bld.install_files('${PREFIX}/lib', ['libcoyaml.so'])
+        bld.install_files('${PREFIX}/lib', 'libcoyaml.so')
     else:
-        bld.install_files('${PREFIX}/lib', ['libcoyaml.a'])
+        bld.install_files('${PREFIX}/lib', 'libcoyaml.a')
     bld.install_files('${PREFIX}/include', [
         'include/coyaml_hdr.h',
         'include/coyaml_src.h',
@@ -100,28 +97,28 @@ def build_tests(bld):
         )
     bld.add_group()
     diff = 'diff -u ${SRC[0].abspath()} ${SRC[1]}'
-    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} -C -P > ${TGT}',
+    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} -v -C -P > ${TGT[0]}',
         source=['tinytest', 'examples/tinyexample.yaml'],
         target='tinyexample.out',
         always=True)
     bld(rule=diff,
         source=['examples/tinyexample.out', 'tinyexample.out'],
         always=True)
-    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} --config-var clivar=CLI -C -P > ${TGT}',
+    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} --config-var clivar=CLI -C -P > ${TGT[0]}',
         source=['compr', 'examples/compexample.yaml'],
         target='compexample.out',
         always=True)
     bld(rule=diff,
         source=['examples/compexample.out', 'compexample.out'],
         always=True)
-    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} -C -P > ${TGT}',
+    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} -C -P > ${TGT[0]}',
         source=['recursive', 'examples/recexample.yaml'],
         target='recexample.out',
         always=True)
     bld(rule=diff,
         source=['examples/recexample.out', 'recexample.out'],
         always=True)
-    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} -Dclivar=CLI > ${TGT}',
+    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} -Dclivar=CLI > ${TGT[0]}',
         source=['compr', 'examples/compexample.yaml'],
         target='compr.out',
         always=True)
@@ -167,5 +164,5 @@ class makepkg(BuildContext):
     variant = 'archpkg'
     
 def bumpver(ctx):
-    ctx.exec_command("sed -i.bak 's/v\d+\.{\d+}\.\d+/"+VERSION+"/'"
+    ctx.exec_command(r"sed -ri.bak 's/(X-Version[^0-9]*)[0-9.]+/\1"+VERSION+"/'"
         " examples/compr.out examples/compexample.out")

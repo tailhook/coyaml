@@ -295,6 +295,7 @@ class GenCCode(object):
                 else:
                     raise NotImplementedError(opt)
                 copt(StrValue(
+                    callback=Coerce('coyaml_option_fun', opt_fun),
                     prop=Coerce('coyaml_placeholder_t *', opt.target.prop_ref),
                     ))
             cmd(StrValue(name=NULL, val=Int(0), flag='NULL', has_arg='FALSE')),
