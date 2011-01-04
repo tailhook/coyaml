@@ -3,9 +3,9 @@ SimpleHTTPServer:
   log-file: /var/log/test.log
   listen:
     host: localhost
-    fd: 0
     port: 80
     unix-socket: 
+    fd: 0
   max-request-size: 1048576
   directory-indexes:
   - index
@@ -56,22 +56,22 @@ SimpleHTTPServer:
     value: 123
   responses:
     default:
+      code: 200
       status: OK
       headers:
         Content-Type: text/html
         X-Fortune: no
-      code: 200
       body: "<!DOCTYPE html>\n<html>\n    <head><title>Hello</title></head>\n    <body>\n
         \       <h1>Hello</h2>\n        This is an empty site, actually!\n    </body>\n</html>\n"
     not-found:
+      code: 500
       status: Error
       headers:
         Content-Type: text/html
-      code: 500
       body: Error
     internal-error:
+      code: 500
       status: Error
       headers:
         Content-Type: text/html
-      code: 500
       body: Error

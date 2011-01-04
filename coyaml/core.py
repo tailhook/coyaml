@@ -48,8 +48,8 @@ class Usertype(object):
             self.tags = {k:v for k, v in tags.items()
                 if not k.startswith('__')}
         self.inheritance = members.pop('__inheritance__', None)
-        self.members = {k:v for k, v in members.items()
-            if not k.startswith('__')}
+        self.members = OrderedDict((k, v) for k, v in members.items()
+            if not k.startswith('__'))
         if isinstance(members.get('__value__'), Convert):
             self.convert = members['__value__'].fun
         elif members.get('__value__'):

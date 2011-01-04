@@ -1,98 +1,98 @@
 Logging:
-  handlers:
-  - max-size: 1048576
-    filename: errors.log
-    period: 86400
-    level: 3
-  noninheritedlist:
-  - ein
-  - zwei
   level: 5
+  propagate: yes
+  formatter:
+    dateformat: '%Y%m%d%H%M%S'
+    format: '[{time}] {logger} {levelname} {message}'
+  handlers:
+  - level: 3
+    filename: errors.log
+    max-size: 1048576
+    period: 86400
   inheritedlist:
   - one
   - two
-  propagate: yes
-  formatter:
-    format: '[{time}] {logger} {levelname} {message}'
-    dateformat: '%Y%m%d%H%M%S'
+  noninheritedlist:
+  - ein
+  - zwei
   children:
     performance:
-      handlers:
-      - max-size: 1048576
-        filename: performance.log
-        period: 86400
-        level: 8
-      noninheritedlist: []
       level: 7
+      propagate: yes
+      formatter:
+        dateformat: '%Y-%m-%d %H:%M:%S'
+        format: '{message}'
+      handlers:
+      - level: 8
+        filename: performance.log
+        max-size: 1048576
+        period: 86400
       inheritedlist:
       - one
       - two
-      propagate: yes
-      formatter:
-        format: '{message}'
-        dateformat: '%Y-%m-%d %H:%M:%S'
+      noninheritedlist: []
       children: {}
     game:
-      handlers:
-      - max-size: 10485760
-        filename: game.log
-        period: 86400
-        level: 8
-      - max-size: 1048576
-        filename: errors.log
-        period: 86400
-        level: 3
-      noninheritedlist:
-      - one
       level: 5
+      propagate: no
+      formatter:
+        dateformat: '%Y%m%d%H%M%S'
+        format: '[{time}] {logger} {levelname} {message}'
+      handlers:
+      - level: 8
+        filename: game.log
+        max-size: 10485760
+        period: 86400
+      - level: 3
+        filename: errors.log
+        max-size: 1048576
+        period: 86400
       inheritedlist:
       - three
       - one
       - two
-      propagate: no
-      formatter:
-        format: '[{time}] {logger} {levelname} {message}'
-        dateformat: '%Y%m%d%H%M%S'
+      noninheritedlist:
+      - one
       children:
         rating:
-          handlers:
-          - max-size: 10485760
-            filename: game.log
-            period: 86400
-            level: 8
-          - max-size: 1048576
-            filename: errors.log
-            period: 86400
-            level: 3
-          noninheritedlist: []
           level: 6
+          propagate: yes
+          formatter:
+            dateformat: '%Y%m%d%H%M%S'
+            format: '[{time}] {logger} {levelname} {message}'
+          handlers:
+          - level: 8
+            filename: game.log
+            max-size: 10485760
+            period: 86400
+          - level: 3
+            filename: errors.log
+            max-size: 1048576
+            period: 86400
           inheritedlist:
           - three
           - one
           - two
-          propagate: yes
-          formatter:
-            format: '[{time}] {logger} {levelname} {message}'
-            dateformat: '%Y%m%d%H%M%S'
+          noninheritedlist: []
           children: {}
         battle:
-          handlers:
-          - max-size: 10485760
-            filename: game.log
-            period: 86400
-            level: 8
-          - max-size: 1048576
-            filename: errors.log
-            period: 86400
-            level: 3
-          noninheritedlist: []
           level: 5
+          propagate: yes
+          formatter:
+            dateformat: '%Y%m%d%H%M%S'
+            format: '[{time}] {logger} {levelname} {message}'
+          handlers:
+          - level: 8
+            filename: game.log
+            max-size: 10485760
+            period: 86400
+          - level: 3
+            filename: errors.log
+            max-size: 1048576
+            period: 86400
           inheritedlist:
           - three
           - one
           - two
-          propagate: yes
-          formatter:
-            format: '[{time}] {logger} {levelname} {message}'
-            dateformat: '%Y%m%d%H%M%S'
+          noninheritedlist: []
           children: {}

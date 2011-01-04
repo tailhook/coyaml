@@ -4,7 +4,7 @@ from waflib.Build import BuildContext
 from waflib import Utils, Options
 
 APPNAME='coyaml'
-VERSION='0.3.3'
+VERSION='0.3.4'
 
 top = '.'
 out = 'build'
