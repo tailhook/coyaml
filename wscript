@@ -4,7 +4,7 @@ from waflib.Build import BuildContext
 from waflib import Utils, Options
 
 APPNAME='coyaml'
-VERSION='0.3.4'
+VERSION='0.3.5'
 
 top = '.'
 out = 'build'
@@ -52,7 +52,7 @@ def build(bld):
         source=bld.path.ant_glob('coyaml/*.py'),
         install_path='${PYTHONDIR}/coyaml')
     bld.install_files('${PREFIX}/bin', 'scripts/coyaml', chmod=0o755)
-    
+
 def build_tests(bld):
     import coyaml.waf
     build(bld)
@@ -106,6 +106,10 @@ def build_tests(bld):
         always=True)
     bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} --config-var clivar=CLI -C -P > ${TGT[0]}',
         source=['compr', 'examples/compexample.yaml'],
+        target='compexample.out.ws',
+        always=True)
+    bld(rule="sed -r 's/\s+$//g' ${SRC[0]} > ${TGT[0]}",
+        source='compexample.out.ws',
         target='compexample.out',
         always=True)
     bld(rule=diff,
@@ -125,28 +129,28 @@ def build_tests(bld):
     bld(rule=diff,
         source=['examples/compr.out', 'compr.out'],
         always=True)
-            
+
 class test(BuildContext):
     cmd = 'test'
     fun = 'build_tests'
     variant = 'test'
-    
+
 def dist(ctx):
     ctx.excl = ['.waf*', '*.tar.bz2', '*.zip', 'build',
         '.git*', '.lock*', '**/*.pyc']
     ctx.algo = 'tar.bz2'
-    
+
 def make_pkgbuild(task):
     import hashlib
     task.outputs[0].write(Utils.subst_vars(task.inputs[0].read(), {
         'VERSION': VERSION,
         'DIST_MD5': hashlib.md5(task.inputs[1].read('rb')).hexdigest(),
         }))
-        
+
 def archpkg(ctx):
     from waflib import Options
     Options.commands = ['dist', 'makepkg'] + Options.commands
-        
+
 def build_package(bld):
     distfile = APPNAME + '-' + VERSION + '.tar.bz2'
     bld(rule=make_pkgbuild,
@@ -157,12 +161,12 @@ def build_package(bld):
     bld(rule='makepkg -f', source=distfile)
     bld.add_group()
     bld(rule='makepkg -f --source', source=distfile)
-    
+
 class makepkg(BuildContext):
     cmd = 'makepkg'
     fun = 'build_package'
     variant = 'archpkg'
-    
+
 def bumpver(ctx):
     ctx.exec_command(r"sed -ri.bak 's/(X-Version[^0-9]*)[0-9.]+/\1"+VERSION+"/'"
         " examples/compr.out examples/compexample.out")

@@ -5,7 +5,7 @@ _vars1: &vars1
 _vars2: &vars2
   X-Version: $coyaml_version
   X-Integer: $intvar bytes
-  X-Cli: value from $clivar 
+  X-Cli: value from $clivar
 
 SimpleHTTPServer:
   log-level: 3
@@ -22,12 +22,12 @@ SimpleHTTPServer:
     X-Anchor: *var
     X-Var: $var
     X-Var: bla
-    
+
     <<:
       X-Subst: hello$var
       X-Subst2: hello${var}world
       <<: [*vars1, *vars2]
-      
+
 
   http-forward:
     - host: 192.168.0.1
@@ -46,17 +46,16 @@ SimpleHTTPServer:
     =: !kbytes 123
   responses:
     default:
-        code: 200
-        status: OK
-        headers:
-            Content-Type: text/html
-            X-Fortune: no
-        body: !FromFile test.html
-    not-found: &error
-        code: 500
-        status: Error
-        headers:
-            Content-Type: text/html
-        body: Error 
+      code: 200
+      status: OK
+      headers:
+          Content-Type: text/html
+          X-Fortune: no
+      body: !FromFile test.html
+    _error: &error
+      code: 500
+      status: Error
+      headers:
+          Content-Type: text/html
+      body: Error
     internal-error: *error
-    

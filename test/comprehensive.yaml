@@ -4,7 +4,7 @@ __meta__:
   default-config: /etc/simplehttp.yaml
   description: >
     This is a non-working server to test some configuration file facilities
-    
+
   c_std_include:
     - 'sys/time.h'
 
@@ -32,7 +32,7 @@ __types__:
       zmq.Bind: 1
       zmq.Connect: 2
     __value__: !String ""
-  
+
   zmqaddr_list:
     __tags__:
       __property__: kind
@@ -42,7 +42,7 @@ __types__:
       zmq.Pub: 3
     __value__: !Array
         element: !Struct zmqaddr
-        
+
   taggedint:
     __tags__:
       __default__: bytes
@@ -127,6 +127,9 @@ SimpleHTTPServer:
     =: zmqaddr_list
   intvalue: !Struct taggedint
   intvalue2: !Struct taggedint
+  intvalue3: !Struct
+    =: taggedint
+    default: 10
   _hidden-field: !Int 5
   _hidden-ptr: !_VoidPtr ~
   _hidden-struct: !CStruct timeval
