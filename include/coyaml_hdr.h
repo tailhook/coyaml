@@ -55,7 +55,7 @@ typedef struct coyaml_context_s {
     struct coyaml_group_s *root_group;
     char *root_filename;
     bool free_object;
-    
+
     struct obstack pieces;
     struct coyaml_variable_s *variables;
     struct coyaml_parseinfo_s *parseinfo;
@@ -64,6 +64,7 @@ typedef struct coyaml_context_s {
 int coyaml_readfile(coyaml_context_t *ctx);
 int coyaml_cli_prepare(coyaml_context_t *, int argc, char **argv);
 int coyaml_cli_parse(coyaml_context_t *, int argc, char **argv);
+void coyaml_context_free(coyaml_context_t *ctx);
 
 int coyaml_set_string(coyaml_context_t *, char *name, char *data, int dlen);
 int coyaml_set_integer(coyaml_context_t *ctx, char *name, long value);

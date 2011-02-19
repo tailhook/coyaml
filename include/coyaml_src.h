@@ -115,7 +115,7 @@ typedef struct coyaml_valuetype_s {
     coyaml_valuetype_t *type; \
     int baseoffset; \
     int flagoffset;
-    
+
 typedef struct coyaml_placeholder_s {
     COYAML_PLACEHOLDER
 } coyaml_placeholder_t;
@@ -235,7 +235,6 @@ int coyaml_readfile(coyaml_context_t *);
 int coyaml_print(FILE *output, coyaml_group_t *root,
     void *cfg, coyaml_print_enum mode);
 coyaml_context_t *coyaml_context_init(coyaml_context_t *ctx);
-void coyaml_context_free(coyaml_context_t *ctx);
 
 void coyaml_config_free(void *ptr);
 
