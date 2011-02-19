@@ -631,6 +631,8 @@ class GenCCode(object):
                 type=Ref(Ident('coyaml_int_type')),
                 baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
+                description=String(item.description.strip())
+                    if hasattr(item, 'description') else NULL,
                 flagoffset=Int(struct.nextflag())
                     if item.inheritance else Int(0),
                 min=Int(parse_int(getattr(item, 'min', 0))),
@@ -647,6 +649,8 @@ class GenCCode(object):
                 type=Ref(Ident('coyaml_uint_type')),
                 baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
+                description=String(item.description.strip())
+                    if hasattr(item, 'description') else NULL,
                 flagoffset=Int(struct.nextflag())
                     if item.inheritance else Int(0),
                 min=Int(parse_int(getattr(item, 'min', 0))),
@@ -663,6 +667,8 @@ class GenCCode(object):
                 type=Ref(Ident('coyaml_bool_type')),
                 baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
+                description=String(item.description.strip())
+                    if hasattr(item, 'description') else NULL,
                 flagoffset=Int(struct.nextflag())
                     if item.inheritance else Int(0),
                 ))
@@ -674,6 +680,8 @@ class GenCCode(object):
                 type=Ref(Ident('coyaml_string_type')),
                 baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
+                description=String(item.description.strip())
+                    if hasattr(item, 'description') else NULL,
                 flagoffset=Int(struct.nextflag())
                     if item.inheritance else Int(0),
                 ))
@@ -685,6 +693,8 @@ class GenCCode(object):
                 type=Ref(Ident('coyaml_file_type')),
                 baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
+                description=String(item.description.strip())
+                    if hasattr(item, 'description') else NULL,
                 flagoffset=Int(struct.nextflag())
                     if item.inheritance else Int(0),
                 bitmask=Int(bitmask(hasattr(item, 'warn_outside'))),
@@ -701,6 +711,8 @@ class GenCCode(object):
                 type=Ref(Ident('coyaml_dir_type')),
                 baseoffset=Call('offsetof', [ struct.a_name,
                     mem2dotname(member) ]),
+                description=String(item.description.strip())
+                    if hasattr(item, 'description') else NULL,
                 flagoffset=Int(struct.nextflag())
                     if item.inheritance else Int(0),
                 check_existence=cbool(getattr(item, 'check_existence', False)),

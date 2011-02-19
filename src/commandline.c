@@ -64,6 +64,7 @@ int coyaml_cli_parse(coyaml_context_t *ctx, int argc, char **argv) {
     int old_optind = optind;
     bool do_print = 0;
     bool do_exit = 0;
+    coyaml_print_enum print_mode = COYAML_PRINT_FULL;
     while((opt = getopt_long(argc, argv,
         ctx->cmdline->optstr, ctx->cmdline->options, NULL)) != -1) {
         char *pos = strchr(ctx->cmdline->optstr, opt);
@@ -81,6 +82,9 @@ int coyaml_cli_parse(coyaml_context_t *ctx, int argc, char **argv) {
         } else if(opt >= COYAML_CLI_RESERVED) {
             switch(opt) {
             case COYAML_CLI_PRINT:
+                if(do_print) {
+                    print_mode |= COYAML_PRINT_COMMENTS;
+                }
                 do_print = TRUE;
                 do_exit = TRUE;
                 break;
@@ -102,8 +106,7 @@ int coyaml_cli_parse(coyaml_context_t *ctx, int argc, char **argv) {
         return -1;
     }
     if(do_print) {
-        if(ctx->cmdline->print_callback(stdout, ctx->target,
-            COYAML_PRINT_FULL/*fixme*/) < 0) {
+        if(ctx->cmdline->print_callback(stdout, ctx->target, print_mode) < 0) {
             return -1;
         }
     }

@@ -113,6 +113,7 @@ typedef struct coyaml_valuetype_s {
 
 #define COYAML_PLACEHOLDER \
     coyaml_valuetype_t *type; \
+    char *description; \
     int baseoffset; \
     int flagoffset;
 

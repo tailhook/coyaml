@@ -104,6 +104,7 @@ def build_tests(bld):
     bld(rule=diff,
         source=['examples/tinyexample.out', 'tinyexample.out'],
         always=True)
+
     bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} --config-var clivar=CLI -C -P > ${TGT[0]}',
         source=['compr', 'examples/compexample.yaml'],
         target='compexample.out.ws',
@@ -115,6 +116,19 @@ def build_tests(bld):
     bld(rule=diff,
         source=['examples/compexample.out', 'compexample.out'],
         always=True)
+
+    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} --config-var clivar=CLI -C -PP > ${TGT[0]}',
+        source=['compr', 'examples/compexample.yaml'],
+        target='compexample.out.ws1',
+        always=True)
+    bld(rule="sed -r 's/\s+$//g' ${SRC[0]} > ${TGT[0]}",
+        source='compexample.out.ws1',
+        target='compexample.out1',
+        always=True)
+    bld(rule=diff,
+        source=['examples/compexample_comments.out', 'compexample.out1'],
+        always=True)
+
     bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} -C -P > ${TGT[0]}',
         source=['recursive', 'examples/recexample.yaml'],
         target='recexample.out',

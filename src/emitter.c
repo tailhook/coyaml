@@ -16,7 +16,7 @@
 
 int coyaml_print_root(coyaml_printctx_t *ctx) {
     yaml_event_t event;
-    
+
     CHECK(yaml_stream_start_event_initialize(&event, YAML_UTF8_ENCODING));
     CHECK(yaml_emitter_emit(&ctx->emitter, &event));
     CHECK(yaml_document_start_event_initialize(&event, NULL, NULL, NULL, 1));
@@ -63,7 +63,7 @@ int coyaml_print(FILE *file, coyaml_group_t *root,
                 break;
         }
     }
-   
+
     yaml_emitter_delete(&ctx.emitter);
     return res;
 }
@@ -76,12 +76,19 @@ int coyaml_group_emit(coyaml_printctx_t *ctx,
         NULL, "tag:yaml.org,2002:map", 1,
         YAML_BLOCK_MAPPING_STYLE));
     CHECK(yaml_emitter_emit(&ctx->emitter, &event));
-    
+
     for(coyaml_transition_t *tr = prop->transitions; tr && tr->symbol; ++tr) {
+        if(tr->prop->description && ctx->comments) {
+            char buf[strlen("_help_") + strlen(tr->symbol)];
+            strcpy(buf, "_help_");
+            strcpy(buf + strlen("_help_"), tr->symbol);
+            EMIT_STRING(buf);
+            EMIT_STRING(tr->prop->description);
+        }
         EMIT_STRING(tr->symbol);
         VISIT(tr->prop, target);
     }
-    
+
     CHECK(yaml_mapping_end_event_initialize(&event));
     CHECK(yaml_emitter_emit(&ctx->emitter, &event));
     return 0;
@@ -110,13 +117,13 @@ int coyaml_array_emit(coyaml_printctx_t *ctx,
         NULL, "tag:yaml.org,2002:seq", 1,
         YAML_BLOCK_SEQUENCE_STYLE));
     CHECK(yaml_emitter_emit(&ctx->emitter, &event));
-    
+
     for(coyaml_arrayel_head_t *el
         = *(coyaml_arrayel_head_t **)((char *)target+prop->baseoffset);
         el; el = el->next) {
         VISIT(prop->element_prop, el);
     }
-    
+
     CHECK(yaml_sequence_end_event_initialize(&event));
     CHECK(yaml_emitter_emit(&ctx->emitter, &event));
     return 0;
@@ -130,14 +137,14 @@ int coyaml_mapping_emit(coyaml_printctx_t *ctx,
         NULL, "tag:yaml.org,2002:map", 1,
         YAML_BLOCK_MAPPING_STYLE));
     CHECK(yaml_emitter_emit(&ctx->emitter, &event));
-    
+
     for(coyaml_mappingel_head_t *el
         = *(coyaml_mappingel_head_t **)((char *)target+prop->baseoffset);
         el; el = el->next) {
         VISIT(prop->key_prop, el);
         VISIT(prop->value_prop, el);
     }
-   
+
     CHECK(yaml_mapping_end_event_initialize(&event));
     CHECK(yaml_emitter_emit(&ctx->emitter, &event));
     return 0;
