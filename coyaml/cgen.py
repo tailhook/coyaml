@@ -15,6 +15,16 @@ Description:
 {description}
 
 Options:
+  -h, --help        Print this help
+  -c, --config FILE Name of configuration file
+  --debug-config    Print debugging information while parsing configuration file
+  --config-vars     Enable variables in configuration file (by default)
+  --config-no-vars  Disable variables in configuration file
+  -D,--config-var NAME=VALUE
+                    Set value of configuration variable NAME to value VALUE
+  -P,--print-config Print read configuration. Including command-line overrides
+                    Double this flag (`-PP`) to include parameter descriptions
+  -C,--check-config Only check configuration file and exit
 {options}
 """
 
