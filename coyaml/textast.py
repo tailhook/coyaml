@@ -2,7 +2,9 @@
 from io import StringIO
 import types
 import re
-from contextlib import contextmanager, nested
+from contextlib import contextmanager
+
+from .util import nested
 
 class Node(object):
     __slots__ = ('_futures',)

@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from string import digits
 import re
 
@@ -16,7 +17,7 @@ units = {
     "E": 1000000000000000000,
     "Ei": 1 << 60,
     }
-    
+
 reserved = {
     'class',
     'default',
@@ -41,7 +42,7 @@ def varname(value):
     if value in reserved:
         value = value + '_'
     return value
-    
+
 def parse_int(value):
     if isinstance(value, int):
         return value
@@ -52,3 +53,33 @@ def parse_int(value):
     if m.group(2):
         res *= units[m.group(2)]
     return res
+
+
+@contextmanager
+def nested(*managers):
+    """nested decorator stolen from old python for python 3.2 compatibility"""
+    exits = []
+    vars = []
+    exc = (None, None, None)
+    try:
+        for mgr in managers:
+            exit = mgr.__exit__
+            enter = mgr.__enter__
+            vars.append(enter())
+            exits.append(exit)
+        yield vars
+    except:
+        exc = sys.exc_info()
+    finally:
+        while exits:
+            exit = exits.pop()
+            try:
+                if exit(*exc):
+                    exc = (None, None, None)
+            except:
+                exc = sys.exc_info()
+        if exc != (None, None, None):
+            # Don't rely on sys.exc_info() still containing
+            # the right information. Another exception may
+            # have been raised and caught by an exit method
+            raise exc[0]

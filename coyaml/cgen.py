@@ -1,9 +1,8 @@
 import textwrap
 from collections import defaultdict
-from contextlib import nested
 
 from . import load, core
-from .util import builtin_conversions, parse_int
+from .util import builtin_conversions, parse_int, nested
 from .cutil import varname, string, typename, cbool
 from .cast import *
 
