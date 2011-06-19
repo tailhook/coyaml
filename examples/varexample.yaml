@@ -1,10 +1,10 @@
 Data:
-  int1: &val1 10
-  int2: *val1
-  int3: 123
-  uint1: *val1
-  uint2: 123
+  int1: &val 10
+  int2: *val
+  int3: $val
+  uint1: ${val}
+  uint2: ${val+2}M
   uint3: 456
-  str1: *val1
-  str2: 123$val1
+  str1: *val
+  str2: 123$val
   str3: 456

@@ -65,10 +65,9 @@ static char *find_var(coyaml_parseinfo_t *info, char *name, int nlen) {
     return NULL;
 }
 
-int coyaml_eval_int(coyaml_parseinfo_t *info,
-    char *value, size_t vlen, long *result) {
+static char *parse_long(char *value, long *result) {
     char *end;
-    int val = strtol(value, (char **)&end, 0);
+    long val = strtol(value, (char **)&end, 0);
     if(*end) {
         for(struct unit_s *unit = units; unit->unit; ++unit) {
             if(!strcmp(end, unit->unit)) {
@@ -78,11 +77,25 @@ int coyaml_eval_int(coyaml_parseinfo_t *info,
             }
         }
     }
-    if(end != value + vlen) {
-        errno = EINVAL;
-        return -1;
-    }
     *result = val;
+    return end;
+}
+
+int coyaml_eval_int(coyaml_parseinfo_t *info,
+    char *value, size_t vlen, long *result) {
+    if(info->parse_vars && strchr(value, '$')) {
+        char *data;
+        int dlen;
+        if(coyaml_eval_str(info, value, vlen, &data, &dlen)) {
+            return -1;
+        }
+        char *end = parse_long(data, result);
+        obstack_free(&info->head->pieces, data);
+        SYNTAX_ERROR(end == data + dlen);
+        return 0;
+    }
+    char *end = parse_long(value, result);
+    SYNTAX_ERROR(end == value + vlen);
     return 0;
 }
 
