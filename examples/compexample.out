@@ -23,7 +23,7 @@ SimpleHTTPServer:
     X-Subst2: hello_var_world
     X-No-Var: hello
     X-Uservar: hello example
-    X-Version: 0.3.5
+    X-Version: 0.3.7
     X-Integer: 123 bytes
     X-Cli: value from CLI
   http-forward:
