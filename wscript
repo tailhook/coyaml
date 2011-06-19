@@ -33,6 +33,7 @@ def build(bld):
             'src/types.c',
             'src/emitter.c',
             'src/copy.c',
+            'src/eval.c',
             ],
         target       = 'coyaml',
         includes     = ['include', 'src'],
@@ -72,6 +73,18 @@ def build_tests(bld):
     bld(
         features     = ['c', 'cprogram', 'coyaml'],
         source       = [
+            'test/vartest.c',
+            'test/vars.yaml',
+            ],
+        target       = 'vartest',
+        includes     = ['include', 'test'],
+        libpath      = ['.'],
+        cflags       = ['-std=c99'],
+        lib          = ['coyaml', 'yaml'],
+        )
+    bld(
+        features     = ['c', 'cprogram', 'coyaml'],
+        source       = [
             'test/compr.c',
             'test/comprehensive.yaml',
             ],
@@ -103,6 +116,14 @@ def build_tests(bld):
         always=True)
     bld(rule=diff,
         source=['examples/tinyexample.out', 'tinyexample.out'],
+        always=True)
+
+    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} -C -P > ${TGT[0]}',
+        source=['vartest', 'examples/varexample.yaml'],
+        target='varexample.out',
+        always=True)
+    bld(rule=diff,
+        source=['examples/varexample.out', 'varexample.out'],
         always=True)
 
     bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} --config-var clivar=CLI -C -P > ${TGT[0]}',

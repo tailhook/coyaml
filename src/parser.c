@@ -16,6 +16,7 @@
 #include "parser.h"
 #include "util.h"
 #include "copy.h"
+#include "eval.h"
 
 #define SYNTAX_ERROR(cond) if(!(cond)) { \
     fprintf(stderr, "COYAML: Syntax error in config file ``%s'' " \
@@ -71,25 +72,6 @@ static char *yaml_event_names[] = {
     "YAML_MAPPING_END_EVENT"
     };
 
-static struct unit_s {
-    char *unit;
-    size_t value;
-} units[] = {
-    {"k", 1000L},
-    {"ki", 1L << 10},
-    {"M", 1000000L},
-    {"Mi", 1L << 20},
-    {"G", 1000000000L},
-    {"Gi", 1L << 30},
-    {"T", 1000000000000L},
-    {"Ti", 1L << 40},
-    {"P", 1000000000000000L},
-    {"Pi", 1L << 50},
-    {"E", 1000000000000000000L},
-    {"Ei", 1L << 60},
-    {NULL, 0},
-    };
-
 static char zero[sizeof(yaml_event_t)] = {0}; // compiler should make this zero
 
 static int coyaml_next(coyaml_parseinfo_t *info);
@@ -119,28 +101,6 @@ static coyaml_anchor_t *find_anchor(coyaml_parseinfo_t *info, char *name) {
     for(coyaml_anchor_t *a = info->anchor_first; a; a = a->next) {
         if(!strcmp(name, a->name)) {
             return a;
-        }
-    }
-    return NULL;
-}
-
-static char *find_var(coyaml_parseinfo_t *info, char *name, int nlen) {
-    char *data;
-    int dlen;
-    char cname[nlen+1];
-    memcpy(cname, name, nlen);
-    cname[nlen] = 0;
-    COYAML_DEBUG("Searching for ``$%s''", cname);
-    if(!coyaml_get_string(info->context, cname, &data, &dlen)) {
-        return data;
-    }
-    for(coyaml_anchor_t *a = info->anchor_first; a; a = a->next) {
-        if(!strncmp(name, a->name, nlen) && strlen(a->name) == nlen) {
-            if(a->events[0].type != YAML_SCALAR_EVENT) {
-                SYNTAX_ERROR2_NULL("You can only substitute a scalar variable,"
-                    " use ``*'' to dereference complex anchors");
-            }
-            return a->events[0].data.scalar.value;
         }
     }
     return NULL;
@@ -223,7 +183,7 @@ static int include_next(coyaml_parseinfo_t *info) {
                 cur->prev = info->current_file;
                 info->current_file->next = cur;
                 info->current_file = cur;
-                
+
                 CHECK(plain_next(info));
                 SYNTAX_ERROR(info->event.type == YAML_STREAM_START_EVENT);
                 CHECK(plain_next(info));
@@ -367,7 +327,7 @@ static coyaml_mapkey_t *make_mapping_key(coyaml_parseinfo_t *info) {
         sizeof(coyaml_mapkey_t)+info->event.data.scalar.length+1);
     res->left = NULL;
     res->right = NULL;
-    memcpy((char *)res + sizeof(coyaml_mapkey_t), 
+    memcpy((char *)res + sizeof(coyaml_mapkey_t),
         info->event.data.scalar.value, info->event.data.scalar.length + 1);
     return res;
 }
@@ -426,7 +386,7 @@ static int duplicate_next(coyaml_parseinfo_t *info) {
     CHECK(mapping_next(info));
     coyaml_mapmerge_t *mapping = info->top_map;
     if(!mapping && info->event.type != YAML_MAPPING_START_EVENT) return 0;
-    
+
     switch(info->event.type) {
         case YAML_SCALAR_EVENT:
             if(!mapping->state && !mapping->level) {
@@ -552,7 +512,7 @@ int coyaml_readfile(coyaml_context_t *ctx) {
     obstack_init(&sinfo.mappieces);
 
     coyaml_parseinfo_t *info = &sinfo;
-    
+
     sinfo.root_file = sinfo.current_file = open_file(info, ctx->root_filename);
     if(!sinfo.root_file) {
         obstack_free(&sinfo.anchors, NULL);
@@ -563,7 +523,7 @@ int coyaml_readfile(coyaml_context_t *ctx) {
     ctx->parseinfo = &sinfo;
     int result = coyaml_root(info, ctx->root_group, ctx->target);
     ctx->parseinfo = NULL;
-    
+
     for(coyaml_marks_t *m = sinfo.last_mark; m; m = m->prev) {
         if(m->parent && m->parent->type == m->type) {
             COYAML_ASSERT(m->prop);
@@ -578,7 +538,7 @@ int coyaml_readfile(coyaml_context_t *ctx) {
     }
     obstack_free(&sinfo.anchors, NULL);
     obstack_free(&sinfo.mappieces, NULL);
-    
+
     for(coyaml_stack_t *t = info->current_file, *n; t; t = n) {
         yaml_parser_delete(&t->parser);
         fclose(t->file);
@@ -637,19 +597,13 @@ int coyaml_int(coyaml_parseinfo_t *info, coyaml_int_t *def, void *target) {
     COYAML_DEBUG("Entering Int");
     SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
-    unsigned char *end;
-    int val = strtol(info->event.data.scalar.value, (char **)&end, 0);
-    if(*end) {
-        for(struct unit_s *unit = units; unit->unit; ++unit) {
-            if(!strcmp(end, unit->unit)) {
-                val *= unit->value;
-                end += strlen(unit->unit);
-                break;
-            }
-        }
+
+    long val = 0;
+    if(coyaml_eval_int(info, info->event.data.scalar.value,
+        info->event.data.scalar.length, &val)) {
+        SYNTAX_ERROR(0);
     }
-    SYNTAX_ERROR(end == info->event.data.scalar.value
-        + info->event.data.scalar.length);
+
     VALUE_ERROR(!(def->bitmask&2) || val <= def->max,
         "Value must be less than or equal to %d", def->max);
     VALUE_ERROR(!(def->bitmask&1) || val >= def->min,
@@ -664,19 +618,13 @@ int coyaml_float(coyaml_parseinfo_t *info, coyaml_float_t *def, void *target) {
     COYAML_DEBUG("Entering Float");
     SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
-    unsigned char *end;
-    double val = strtod(info->event.data.scalar.value, (char **)&end);
-    if(*end) {
-        for(struct unit_s *unit = units; unit->unit; ++unit) {
-            if(!strcmp(end, unit->unit)) {
-                val *= unit->value;
-                end += strlen(unit->unit);
-                break;
-            }
-        }
+
+    double val;
+    if(coyaml_eval_float(info, info->event.data.scalar.value,
+        info->event.data.scalar.length, &val)) {
+        SYNTAX_ERROR(0);
     }
-    SYNTAX_ERROR(end == info->event.data.scalar.value
-        + info->event.data.scalar.length);
+
     VALUE_ERROR(!(def->bitmask&2) || val <= def->max,
         "Value must be less than or equal to %d", def->max);
     VALUE_ERROR(!(def->bitmask&1) || val >= def->min,
@@ -715,26 +663,22 @@ int coyaml_bool(coyaml_parseinfo_t *info, coyaml_bool_t *def, void *target) {
 }
 
 int coyaml_uint(coyaml_parseinfo_t *info, coyaml_uint_t *def, void *target) {
-    COYAML_DEBUG("Entering Int");
+    COYAML_DEBUG("Entering UInt");
     SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
     unsigned char *end;
-    unsigned long val = strtol(info->event.data.scalar.value, (char **)&end, 0);
-    if(*end) {
-        for(struct unit_s *unit = units; unit->unit; ++unit) {
-            if(!strcmp(end, unit->unit)) {
-                val *= unit->value;
-                end += strlen(unit->unit);
-                break;
-            }
-        }
+    long tval = 0;
+    if(coyaml_eval_int(info, info->event.data.scalar.value,
+        info->event.data.scalar.length, &tval)) {
+        SYNTAX_ERROR(0);
     }
-    SYNTAX_ERROR(end == info->event.data.scalar.value
-        + info->event.data.scalar.length);
+    unsigned long val = (unsigned long) tval;
     VALUE_ERROR(!(def->bitmask&2) || val <= def->max,
         "Value must be less than or equal to %d", def->max);
     VALUE_ERROR(!(def->bitmask&1) || val >= def->min,
         "Value must be greater than or equal to %d", def->min);
+    VALUE_ERROR(tval >= 0,
+        "Value must be greater or equal to zero");
     *(unsigned long *)(((char *)target)+def->baseoffset) = val;
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving UInt");
@@ -811,45 +755,8 @@ int coyaml_string(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) 
     } else {
         char *data = info->event.data.scalar.value;
         int dlen = info->event.data.scalar.length;
-        if(info->parse_vars && strchr(data, '$')) {
-            obstack_blank(&info->head->pieces, 0);
-            for(char *c = data; *c;) {
-                if(*c != '$' && *c != '\\') {
-                    obstack_1grow(&info->head->pieces, *c);
-                    ++c;
-                    continue;
-                }
-                if(*c == '\\') {
-                    obstack_1grow(&info->head->pieces, *c);
-                    SYNTAX_ERROR(*++c);
-                    obstack_1grow(&info->head->pieces, *c);
-                    continue;
-                }
-                ++c;
-                char *name = c;
-                int nlen;
-                if(*c == '{') {
-                    ++c;
-                    ++name;
-                    while(*++c && *c != '}');
-                    nlen = c - name;
-                    SYNTAX_ERROR(*c++ == '}');
-                } else {
-                    while(*++c && (isalnum(*c) || *c == '_'));
-                    nlen = c - name;
-                }
-                char *value = find_var(info, name, nlen);
-                if(value) {
-                    obstack_grow(&info->head->pieces, value, strlen(value));
-                } else {
-                    COYAML_DEBUG("Not found variable ``%.*s''", nlen, name);
-                }
-            }
-            obstack_1grow(&info->head->pieces, 0);
-            dlen = obstack_object_size(&info->head->pieces)-1;
-            data = obstack_finish(&info->head->pieces);
-        } else {
-            data = obstack_copy0(&info->head->pieces, data, dlen);
+        if(coyaml_eval_str(info, data, dlen, &data, &dlen)) {
+            SYNTAX_ERROR(0);
         }
         *(char **)(((char *)target)+def->baseoffset) = data;
         *(int *)(((char *)target)+def->baseoffset+sizeof(char*)) = dlen;
@@ -888,9 +795,9 @@ int coyaml_usertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *targ
         marks->prop = def;
         marks->parent = info->top_mark;
         info->top_mark = marks;
-        
+
         CHECK(coyaml_group(info, def->group, target));
-        
+
         info->top_mark = marks->parent;
         marks->prev = info->last_mark;
         info->last_mark = marks;

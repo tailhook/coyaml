@@ -1,0 +1,18 @@
+
+__meta__:
+  program-name: testvars
+  default-config: /etc/testvars.yaml
+  description: >
+    This is config to test various vars issues
+
+Data:
+  int1: !Int 0
+  int2: !Int 0
+  int3: !Int 0
+  uint1: !UInt 0
+  uint2: !UInt 0
+  uint3: !UInt 0
+  str1: !String
+  str2: !String
+  str3: !String
+

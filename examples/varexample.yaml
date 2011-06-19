@@ -1,0 +1,10 @@
+Data:
+  int1: &val1 10
+  int2: *val1
+  int3: 123
+  uint1: *val1
+  uint2: 123
+  uint3: 456
+  str1: *val1
+  str2: 123$val1
+  str3: 456
