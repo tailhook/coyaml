@@ -1,7 +1,6 @@
 
 #include <yaml.h>
 #include <errno.h>
-#include <setjmp.h>
 #include <obstack.h>
 #include <strings.h>
 #include <sys/types.h>
@@ -55,8 +54,6 @@
     COYAML_ASSERT(!((info)->top_mark->filled[(def)->flagoffset])); \
     (info)->top_mark->filled[(def)->flagoffset] = -1; \
     }
-
-#define obstack_alloc_failed_handler() longjmp(info->recover);
 
 static char *yaml_event_names[] = {
     "YAML_NO_EVENT",
@@ -133,13 +130,15 @@ static coyaml_stack_t *open_file(coyaml_parseinfo_t *info, char *filename) {
     return res;
 }
 
+static int mapping_next(coyaml_parseinfo_t *info);
+
 static int unpack_anchor(coyaml_parseinfo_t *info) {
     memcpy(&info->event, &info->anchor_unpacking->events[info->anchor_pos],
         sizeof(info->event));
     if(info->event.type == YAML_NO_EVENT) {
         info->anchor_pos = -1;
         info->anchor_unpacking = NULL;
-        return coyaml_next(info);
+        return mapping_next(info);
     } else {
         info->anchor_pos += 1;
         return 0;
@@ -389,6 +388,8 @@ static int duplicate_next(coyaml_parseinfo_t *info) {
 
     switch(info->event.type) {
         case YAML_SCALAR_EVENT:
+            COYAML_DEBUG("Scalar at state %d level %d",
+                mapping->state, mapping->level);
             if(!mapping->state && !mapping->level) {
                 coyaml_mapkey_t *key = mapping->keys;
                 if(!key) {

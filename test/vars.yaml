@@ -12,6 +12,9 @@ Data:
   uint1: !UInt 0
   uint2: !UInt 0
   uint3: !UInt 0
+  float1: !Float 0
+  float2: !Float 0
+  float3: !Float 0
   str1: !String
   str2: !String
   str3: !String

@@ -4,7 +4,10 @@ Data:
   int3: 10
   uint1: 10
   uint2: 12000000
-  uint3: 456
+  uint3: 172
+  float1: 0.000000
+  float2: 0.000000
+  float3: 0.000000
   str1: 10
   str2: 12310
-  str3: 456
+  str3: abc7

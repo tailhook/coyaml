@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from string import digits
 import re
+import sys
 
 re_int = re.compile("""\s*(-?\s*\d+)\s*([kMGTPE]i?)?\s*$""")
 units = {
@@ -49,6 +50,18 @@ def parse_int(value):
     m = re_int.match(value)
     if not m:
         raise TypeError("Can't convert ``{0}'' to int".format(value))
+    res = int(m.group(1))
+    if m.group(2):
+        res *= units[m.group(2)]
+    return res
+
+
+def parse_float(value):
+    if isinstance(value, (float, int)):
+        return value
+    m = re_int.match(value)
+    if not m:
+        raise TypeError("Can't convert ``{0}'' to float".format(value))
     res = int(m.group(1))
     if m.group(2):
         res *= units[m.group(2)]

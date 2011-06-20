@@ -2,7 +2,7 @@ import textwrap
 from collections import defaultdict
 
 from . import load, core
-from .util import builtin_conversions, parse_int, nested
+from .util import builtin_conversions, parse_int, parse_float, nested
 from .cutil import varname, string, typename, cbool
 from .cast import *
 
@@ -99,7 +99,7 @@ class GenCCode(object):
         self.prefix = cfg.name
 
     def _vars(self, ast, decl=False):
-        items = ('group', 'string', 'file', 'dir', 'int', 'uint',
+        items = ('group', 'string', 'file', 'dir', 'int', 'uint', 'float',
             'custom', 'mapping', 'array', 'bool')
         if decl:
             for i in items:
@@ -671,6 +671,24 @@ class GenCCode(object):
             item.prop_func = 'coyaml_uint'
             item.prop_ref = Ref(Subscript(Ident(self.prefix+'_uint_vars'),
                 Int(len(self.states['uint'].content)-1)))
+        elif isinstance(item, load.Float):
+            self.states['float'](StrValue(
+                type=Ref(Ident('coyaml_float_type')),
+                baseoffset=Call('offsetof', [ struct.a_name,
+                    mem2dotname(member) ]),
+                description=String(item.description.strip())
+                    if hasattr(item, 'description') else NULL,
+                flagoffset=Int(struct.nextflag())
+                    if item.inheritance else Int(0),
+                min=Int(parse_int(getattr(item, 'min', 0))),
+                max=Int(parse_int(getattr(item, 'max', 0))),
+                bitmask=Int(bitmask(
+                    hasattr(item, 'min'),
+                    hasattr(item, 'max'),
+                ))))
+            item.prop_func = 'coyaml_float'
+            item.prop_ref = Ref(Subscript(Ident(self.prefix+'_float_vars'),
+                Int(len(self.states['float'].content)-1)))
         elif isinstance(item, load.Bool):
             self.states['bool'](StrValue(
                 type=Ref(Ident('coyaml_bool_type')),
