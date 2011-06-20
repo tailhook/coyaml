@@ -7,9 +7,9 @@ Data:
   uint1: ${val}
   uint2: ${val+2}M
   uint3: ${(1+2*3)*7+123}
-  float1: ${val+i}T
-  float2: ${fl}M
-  float3: $val
+  float1: 135
+  float2: ${val+i}T
+  float3: ${fl}M
   str1: *val
   str2: 123$val
   str3: abc$i

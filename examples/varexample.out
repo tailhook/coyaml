@@ -5,9 +5,9 @@ Data:
   uint1: 10
   uint2: 12000000
   uint3: 172
-  float1: 0.000000
-  float2: 0.000000
-  float3: 0.000000
+  float1: 135.000000
+  float2: 17000000000000.000000
+  float3: 100000.000000
   str1: 10
   str2: 12310
   str3: abc7

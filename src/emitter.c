@@ -189,7 +189,7 @@ int coyaml_float_emit(coyaml_printctx_t *ctx,
     coyaml_placeholder_t *prop, void *target)
 {
     char buf[24];
-    int len = snprintf(buf, 24, "%f", *(long *)((char *)target
+    int len = snprintf(buf, 24, "%f", *(double *)((char *)target
             + prop->baseoffset));
     yaml_event_t event;
     EMIT_STRING_LEN(buf, len);
