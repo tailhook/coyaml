@@ -38,7 +38,7 @@ typedef struct variable_s {
             char *value;
             int length;
         } str;
-    };
+    } data;
 } variable_t;
 
 typedef enum {
@@ -201,13 +201,13 @@ static int var_to_integer(variable_t **var) {
         return -1;
     }
     char *end;
-    long val = strtol(v->str.value, &end, 0);
-    if(end != v->str.value + v->str.length) {
+    long val = strtol(v->data.str.value, &end, 0);
+    if(end != v->data.str.value + v->data.str.length) {
         errno = EINVAL;
         return -1;
     }
     v->type = VAR_INT;
-    v->intvalue = val;
+    v->data.intvalue = val;
     return 0;
 }
 
@@ -219,15 +219,15 @@ static int var_to_string(variable_t **var) {
         return -1;
     }
     char buf[128];  // should be enought for long
-    int len = sprintf(buf, "%ld", (*var)->intvalue);
+    int len = sprintf(buf, "%ld", (*var)->data.intvalue);
     if(len <= 0) return -1;
     variable_t *nvar = realloc(*var, sizeof(variable_t)+len+1);
     if(!nvar) return -1;
     nvar->type = VAR_STRING;
-    nvar->str.value = (char*)nvar + sizeof(variable_t);
-    memcpy(nvar->str.value, buf, len);
-    nvar->str.value[len] = 0;
-    nvar->str.length = len;
+    nvar->data.str.value = (char*)nvar + sizeof(variable_t);
+    memcpy(nvar->data.str.value, buf, len);
+    nvar->data.str.value[len] = 0;
+    nvar->data.str.length = len;
     *var = nvar;
     return 0;
 }
@@ -250,7 +250,7 @@ static variable_t *eval_atom(eval_context_t *ctx) {
         variable_t *res = (variable_t *)malloc(sizeof(variable_t));
         if(!res) return NULL;
         res->type = VAR_INT;
-        res->intvalue = atoi(ctx->token);
+        res->data.intvalue = atoi(ctx->token);
         next_tok(ctx);
         return res;
     } else if(ctx->curtok == TOK_STRING) {
@@ -258,10 +258,10 @@ static variable_t *eval_atom(eval_context_t *ctx) {
             + ctx->next - ctx->token - 1);
         if(!res) return NULL;
         res->type = VAR_STRING;
-        res->str.value = (char *)res + sizeof(variable_t);
-        res->str.length = ctx->next - ctx->token;
-        memcpy(res->str.value, ctx->token+1, ctx->next - ctx->token - 1);
-        res->str.value[ctx->next - ctx->token - 2] = 0;
+        res->data.str.value = (char *)res + sizeof(variable_t);
+        res->data.str.length = ctx->next - ctx->token;
+        memcpy(res->data.str.value, ctx->token+1, ctx->next - ctx->token - 1);
+        res->data.str.value[ctx->next - ctx->token - 2] = 0;
         next_tok(ctx);
         return res;
     } else if(ctx->curtok == TOK_IDENT) {
@@ -272,8 +272,8 @@ static variable_t *eval_atom(eval_context_t *ctx) {
         variable_t *res = (variable_t *)malloc(sizeof(variable_t));
         if(!res) return NULL;
         res->type = VAR_STRING;
-        res->str.value = value;
-        res->str.length = strlen(value);
+        res->data.str.value = value;
+        res->data.str.length = strlen(value);
         next_tok(ctx);
         return res;
     } else {
@@ -300,13 +300,13 @@ static variable_t *eval_product(eval_context_t *ctx) {
             return NULL;
         }
         if(op == TOK_PRODUCT) {
-            left->intvalue *= right->intvalue;
+            left->data.intvalue *= right->data.intvalue;
         }
         if(op == TOK_DIVISION) {
-            left->intvalue /= right->intvalue;
+            left->data.intvalue /= right->data.intvalue;
         }
         if(op == TOK_MODULO) {
-            left->intvalue %= right->intvalue;
+            left->data.intvalue %= right->data.intvalue;
         }
         free(right);
     }
@@ -329,10 +329,10 @@ static variable_t *eval_sum(eval_context_t *ctx) {
             return NULL;
         }
         if(op == TOK_PLUS) {
-            left->intvalue += right->intvalue;
+            left->data.intvalue += right->data.intvalue;
         }
         if(op == TOK_MINUS) {
-            left->intvalue -= right->intvalue;
+            left->data.intvalue -= right->data.intvalue;
         }
         free(right);
     }
@@ -426,7 +426,7 @@ int coyaml_eval_str(coyaml_parseinfo_t *info,
                     SYNTAX_ERROR(0);
                 }
                 obstack_grow(&info->head->pieces,
-                    var->str.value, var->str.length);
+                    var->data.str.value, var->data.str.length);
                 free(var);
             } else {
                 while(*++c && (isalnum(*c) || *c == '_'));
