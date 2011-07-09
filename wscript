@@ -38,7 +38,7 @@ def build(bld):
         target       = 'coyaml',
         includes     = ['include', 'src'],
         defines      = ['COYAML_VERSION="%s"' % VERSION],
-        cflags       = ['-std=c99'],
+        cflags       = ['-std=c99', '-Wall'],
         lib          = ['yaml'],
         )
     if bld.env.BUILD_SHARED:

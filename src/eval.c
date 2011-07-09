@@ -9,14 +9,14 @@
 
 #define SYNTAX_ERROR(cond) if(!(cond)) { \
     fprintf(stderr, "COYAML: Syntax error in config file ``%s'' " \
-        "at line %d column %d\n", \
+        "at line %ld column %ld\n", \
     info->current_file->filename, info->event.start_mark.line+1, \
-    info->event.start_mark.column, info->event.type); \
+    info->event.start_mark.column); \
     errno = ECOYAML_SYNTAX_ERROR; \
     return -1; }
 #define SYNTAX_ERROR2_NULL(message, ...) if(TRUE) { \
     fprintf(stderr, "COAYML: Syntax error in config file ``%s'' " \
-        "at line %d column %d: " message "\n", \
+        "at line %ld column %ld: " message "\n", \
     info->current_file->filename, info->event.start_mark.line+1, \
     info->event.start_mark.column, ##__VA_ARGS__); \
     errno = ECOYAML_SYNTAX_ERROR; \
@@ -117,7 +117,7 @@ static char *find_var(coyaml_parseinfo_t *info, char *name, int nlen) {
                 SYNTAX_ERROR2_NULL("You can only substitute a scalar variable,"
                     " use ``*'' to dereference complex anchors");
             }
-            return a->events[0].data.scalar.value;
+            return (char *)a->events[0].data.scalar.value;
         }
     }
     return NULL;

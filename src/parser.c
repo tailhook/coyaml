@@ -19,14 +19,14 @@
 
 #define SYNTAX_ERROR(cond) if(!(cond)) { \
     fprintf(stderr, "COYAML: Syntax error in config file ``%s'' " \
-        "at line %d column %d\n", \
+        "at line %ld column %ld\n", \
     info->current_file->filename, info->event.start_mark.line+1, \
-    info->event.start_mark.column, info->event.type); \
+    info->event.start_mark.column); \
     errno = ECOYAML_SYNTAX_ERROR; \
     return -1; }
 #define SYNTAX_ERROR2(message, ...) if(TRUE) { \
     fprintf(stderr, "COAYML: Syntax error in config file ``%s'' " \
-        "at line %d column %d: " message "\n", \
+        "at line %ld column %ld: " message "\n", \
     info->current_file->filename, info->event.start_mark.line+1, \
     info->event.start_mark.column, ##__VA_ARGS__); \
     errno = ECOYAML_SYNTAX_ERROR; \
@@ -39,7 +39,7 @@
     errno = ECOYAML_SYNTAX_ERROR; \
     return NULL; }
 #define VALUE_ERROR(cond, message, ...) if(!(cond)) { \
-    fprintf(stderr, "COYAML: Error at %s:%d[%d]: " message "\n", \
+    fprintf(stderr, "COYAML: Error at %s:%ld[%ld]: " message "\n", \
     info->current_file->filename, info->event.start_mark.line+1, \
     info->event.start_mark.column, ##__VA_ARGS__); \
     errno = ECOYAML_VALUE_ERROR; \
@@ -86,6 +86,8 @@ static int coyaml_skip(coyaml_parseinfo_t *info) {
             case YAML_MAPPING_END_EVENT:
             case YAML_SEQUENCE_END_EVENT:
                 -- level;
+                break;
+            default:
                 break;
         }
     } while(level);
@@ -151,15 +153,16 @@ static int plain_next(coyaml_parseinfo_t *info) {
     }
     COYAML_ASSERT(yaml_parser_parse(&info->current_file->parser, &info->event));
     if(info->event.type == YAML_SCALAR_EVENT) {
-        COYAML_DEBUG("Low-level event %s[%d] (%.*s)",
+        COYAML_DEBUG("Low-level event %s[%u] (%.*s)",
             yaml_event_names[info->event.type], info->event.type,
-            info->event.data.scalar.length,
+            (int)info->event.data.scalar.length,
             info->event.data.scalar.value);
     } else {
         COYAML_DEBUG("Low-level event %s[%d]",
             yaml_event_names[info->event.type],
             info->event.type);
     }
+    return 0;
 }
 
 static int include_next(coyaml_parseinfo_t *info) {
@@ -167,15 +170,15 @@ static int include_next(coyaml_parseinfo_t *info) {
     switch(info->event.type) {
         case YAML_SCALAR_EVENT:
             if(info->event.data.scalar.tag
-                && !strcmp(info->event.data.scalar.tag, "!Include")) {
-                char *fn = info->event.data.scalar.value;
+                && !strcmp((char *)info->event.data.scalar.tag, "!Include")) {
+                char *fn = (char *)info->event.data.scalar.value;
                 SYNTAX_ERROR(*fn);
                 if(*fn != '/') {
                     fn = alloca(info->current_file->basedir_len +
                         info->event.data.scalar.length + 1);
                     strcpy(fn, info->current_file->basedir);
                     strcpy(fn + info->current_file->basedir_len,
-                        info->event.data.scalar.value);
+                        (char *)info->event.data.scalar.value);
                 }
                 coyaml_stack_t *cur = open_file(info, fn);
                 VALUE_ERROR(cur, "Can't open file ``%s''", fn);
@@ -203,6 +206,8 @@ static int include_next(coyaml_parseinfo_t *info) {
                 return coyaml_next(info);
             }
             break;
+        default:
+            break;
     }
     return 0;
 }
@@ -214,7 +219,7 @@ static int alias_next(coyaml_parseinfo_t *info) {
     CHECK(include_next(info));
     if(info->event.type == YAML_ALIAS_EVENT) {
         coyaml_anchor_t *anch = find_anchor(info,
-            info->event.data.alias.anchor);
+            (char *)info->event.data.alias.anchor);
         if(anch) {
             info->anchor_pos = 0;
             info->anchor_unpacking = anch;
@@ -251,7 +256,7 @@ static int anchor_next(coyaml_parseinfo_t *info) {
                 info->anchor_level += 1;
                 char *name = obstack_copy0(&info->anchors,
                     info->event.data.scalar.anchor,
-                    strlen(info->event.data.scalar.anchor));
+                    strlen((char *)info->event.data.scalar.anchor));
                 COYAML_DEBUG("Found anchor ``%s''", name);
                 obstack_blank(&info->anchors, sizeof(coyaml_anchor_t));
                 coyaml_anchor_t *cur = obstack_base(&info->anchors);
@@ -337,7 +342,8 @@ static int mapping_next(coyaml_parseinfo_t *info) {
     if(!mapping) return 0;
     switch(info->event.type) {
         case YAML_SCALAR_EVENT:
-            if(!mapping->state && !strcmp(info->event.data.scalar.value,"<<")) {
+            if(!mapping->state
+                && !strcmp((char *)info->event.data.scalar.value,"<<")) {
                 CHECK(anchor_next(info));
                 switch(info->event.type) {
                     case YAML_MAPPING_START_EVENT:
@@ -377,6 +383,8 @@ static int mapping_next(coyaml_parseinfo_t *info) {
                 return mapping_next(info);
             }
             break;
+        default:
+            break;
     }
     return 0;
 }
@@ -396,10 +404,10 @@ static int duplicate_next(coyaml_parseinfo_t *info) {
                     info->top_map->keys = make_mapping_key(info);
                 } else {
                     int rel = find_mapping_key(key,
-                        info->event.data.scalar.value, &key);
+                        (char *)info->event.data.scalar.value, &key);
                     if(rel == 0) {
                         COYAML_DEBUG("Skipping duplicate ``%.*s''",
-                            info->event.data.scalar.length,
+                            (int)info->event.data.scalar.length,
                             info->event.data.scalar.value);
                         CHECK(coyaml_skip(info));
                         mapping->state = 0;
@@ -455,6 +463,8 @@ static int duplicate_next(coyaml_parseinfo_t *info) {
                 }
             }
             break;
+        default:
+            break;
     }
     return 0;
 }
@@ -464,7 +474,7 @@ static int coyaml_next(coyaml_parseinfo_t *info) {
     if(info->event.type == YAML_SCALAR_EVENT) {
         COYAML_DEBUG("Event %s[%d] (%.*s)",
             yaml_event_names[info->event.type], info->event.type,
-            info->event.data.scalar.length,
+            (int)info->event.data.scalar.length,
             info->event.data.scalar.value);
     } else {
         COYAML_DEBUG("Event %s[%d]",
@@ -562,7 +572,7 @@ int coyaml_group(coyaml_parseinfo_t *info, coyaml_group_t *def, void *target) {
             continue;
         }
         coyaml_transition_t *tran;
-        char *key = info->event.data.scalar.value;
+        char *key = (char *)info->event.data.scalar.value;
         if(!strcmp(key, "=")) {
             key = "value";
         }
@@ -600,7 +610,7 @@ int coyaml_int(coyaml_parseinfo_t *info, coyaml_int_t *def, void *target) {
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
 
     long val = 0;
-    if(coyaml_eval_int(info, info->event.data.scalar.value,
+    if(coyaml_eval_int(info, (char *)info->event.data.scalar.value,
         info->event.data.scalar.length, &val)) {
         SYNTAX_ERROR(0);
     }
@@ -621,15 +631,15 @@ int coyaml_float(coyaml_parseinfo_t *info, coyaml_float_t *def, void *target) {
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
 
     double val;
-    if(coyaml_eval_float(info, info->event.data.scalar.value,
+    if(coyaml_eval_float(info, (char *)info->event.data.scalar.value,
         info->event.data.scalar.length, &val)) {
         SYNTAX_ERROR(0);
     }
 
     VALUE_ERROR(!(def->bitmask&2) || val <= def->max,
-        "Value must be less than or equal to %d", def->max);
+        "Value must be less than or equal to %lf", def->max);
     VALUE_ERROR(!(def->bitmask&1) || val >= def->min,
-        "Value must be greater than or equal to %d", def->min);
+        "Value must be greater than or equal to %lf", def->min);
     *(double *)(((char *)target)+def->baseoffset) = val;
     CHECK(coyaml_next(info));
     COYAML_DEBUG("Leaving Float");
@@ -640,7 +650,7 @@ int coyaml_bool(coyaml_parseinfo_t *info, coyaml_bool_t *def, void *target) {
     COYAML_DEBUG("Entering Bool");
     SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
-    char *value = info->event.data.scalar.value;
+    char *value = (char *)info->event.data.scalar.value;
     if(
         !strcasecmp(value, "true")
         || !strcasecmp(value, "y")
@@ -667,9 +677,8 @@ int coyaml_uint(coyaml_parseinfo_t *info, coyaml_uint_t *def, void *target) {
     COYAML_DEBUG("Entering UInt");
     SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
-    unsigned char *end;
     long tval = 0;
-    if(coyaml_eval_int(info, info->event.data.scalar.value,
+    if(coyaml_eval_int(info, (char *)info->event.data.scalar.value,
         info->event.data.scalar.length, &tval)) {
         SYNTAX_ERROR(0);
     }
@@ -720,16 +729,16 @@ int coyaml_string(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) 
     COYAML_DEBUG("Entering String");
     SETFLAG(info, def);
     SYNTAX_ERROR(info->event.type == YAML_SCALAR_EVENT);
-    char *tag = info ? info->event.data.scalar.tag : NULL;
+    char *tag = info ? (char *)info->event.data.scalar.tag : NULL;
     if(tag) {
         if(!strcmp(tag, "!FromFile")) {
-            char *fn = info->event.data.scalar.value;
+            char *fn = (char *)info->event.data.scalar.value;
             if(*fn != '/') {
                 fn = alloca(info->current_file->basedir_len
                     + info->event.data.scalar.length + 1);
                 strcpy(fn, info->current_file->basedir);
                 strcpy(fn + info->current_file->basedir_len,
-                    info->event.data.scalar.value);
+                    (char *)info->event.data.scalar.value);
             }
             COYAML_DEBUG("Opening ``%s'' at ``%s''",
                 fn, info->current_file->basedir);
@@ -754,7 +763,7 @@ int coyaml_string(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) 
             VALUE_ERROR(TRUE, "Unknown tag ``%s''", tag);
         }
     } else {
-        char *data = info->event.data.scalar.value;
+        char *data = (char *)info->event.data.scalar.value;
         int dlen = info->event.data.scalar.length;
         if(coyaml_eval_str(info, data, dlen, &data, &dlen)) {
             SYNTAX_ERROR(0);
@@ -772,7 +781,7 @@ int coyaml_usertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *targ
     if(info->event.type == YAML_SCALAR_EVENT) {
         SYNTAX_ERROR(def->scalar_fun);
         CHECK(def->scalar_fun(info,
-            info->event.data.scalar.value, def, target));
+            (char *)info->event.data.scalar.value, def, target));
         if(def->scalar_fun != coyaml_tagged_scalar) {
             CHECK(coyaml_next(info));
         }
@@ -823,12 +832,12 @@ int coyaml_mapping(coyaml_parseinfo_t *info, coyaml_mapping_t *def, void *target
     COYAML_DEBUG("Entering Mapping");
     if(def->inheritance == COYAML_INH_REPLACE_DEFAULT) {
         if(!info->event.data.mapping_start.tag
-            || strcmp(info->event.data.mapping_start.tag, "!Append")) {
+            || strcmp((char *)info->event.data.mapping_start.tag, "!Append")) {
             SETFLAG(info, def);
         }
     } else if(def->inheritance == COYAML_INH_APPEND_DEFAULT) {
-        if(info->event.data.mapping_start.tag
-            && !strcmp(info->event.data.mapping_start.tag, "!Replace")) {
+        if(info->event.data.mapping_start.tag && !strcmp(
+            (char *)info->event.data.mapping_start.tag, "!Replace")) {
             SETFLAG(info, def);
         } else {
             SETFLAG_1(info, def);
@@ -868,12 +877,12 @@ int coyaml_array(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
     COYAML_DEBUG("Entering Array");
     if(def->inheritance == COYAML_INH_REPLACE_DEFAULT) {
         if(!info->event.data.sequence_start.tag
-            || strcmp(info->event.data.sequence_start.tag, "!Append")) {
+            || strcmp((char*)info->event.data.sequence_start.tag, "!Append")) {
             SETFLAG(info, def);
         }
     } else if(def->inheritance == COYAML_INH_APPEND_DEFAULT) {
-        if(info->event.data.sequence_start.tag
-            && !strcmp(info->event.data.sequence_start.tag, "!Replace")) {
+        if(info->event.data.sequence_start.tag && !strcmp(
+            (char *)info->event.data.sequence_start.tag, "!Replace")) {
             SETFLAG(info, def);
         } else {
             SETFLAG_1(info, def);
@@ -910,7 +919,7 @@ int coyaml_array(coyaml_parseinfo_t *info, coyaml_array_t *def, void *target) {
 int coyaml_parse_tag(coyaml_parseinfo_t *info,
     struct coyaml_usertype_s *prop, int *target) {
     COYAML_DEBUG("Entering Parse Tag");
-    char *tag = info ? info->event.data.scalar.tag : NULL;
+    char *tag = info ? (char *)info->event.data.scalar.tag : NULL;
     if(!tag || !*tag) {
         if(prop->tags) {
             SYNTAX_ERROR(prop->default_tag != -1);

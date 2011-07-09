@@ -61,7 +61,6 @@ int coyaml_cli_prepare(coyaml_context_t *ctx, int argc, char **argv) {
 
 int coyaml_cli_parse(coyaml_context_t *ctx, int argc, char **argv) {
     int opt;
-    int old_optind = optind;
     bool do_print = 0;
     bool do_exit = 0;
     coyaml_print_enum print_mode = COYAML_PRINT_FULL;
@@ -149,9 +148,9 @@ int coyaml_float_o(char *value, coyaml_float_t *def, void *target) {
     VALUE_ERROR(end == value + strlen(value),
         "Option value ``%s'' is not float", value);
     VALUE_ERROR(!(def->bitmask&2) || val <= def->max,
-        "Value must be less than or equal to %d", def->max);
+        "Value must be less than or equal to %lf", def->max);
     VALUE_ERROR(!(def->bitmask&1) || val >= def->min,
-        "Value must be greater than or equal to %d", def->min);
+        "Value must be greater than or equal to %lf", def->min);
     *(double *)(((char *)target)+def->baseoffset) = val;
     return 0;
 }
@@ -205,18 +204,22 @@ int coyaml_bool_disable_o(char *value, coyaml_bool_t *def, void *target) {
 int coyaml_file_o(char *value, coyaml_file_t *def, void *target) {
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
         &((coyaml_head_t *)target)->pieces, value, strlen(value));
+    return 0;
 }
 int coyaml_dir_o(char *value, coyaml_dir_t *def, void *target) {
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
         &((coyaml_head_t *)target)->pieces, value, strlen(value));
     //TODO: more checks
+    return 0;
 }
 int coyaml_string_o(char *value, coyaml_string_t *def, void *target) {
     *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
         &((coyaml_head_t *)target)->pieces, value, strlen(value));
     //TODO: more checks
+    return 0;
 }
 int coyaml_custom_o(char *value, coyaml_custom_t *def, void *target) {
     def->usertype->scalar_fun(NULL, value, def->usertype,
         (void *)(((char *)target)+def->baseoffset));
+    return 0;
 }

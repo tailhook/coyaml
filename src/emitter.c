@@ -4,11 +4,13 @@
 #include "util.h"
 
 #define EMIT_STRING(value) CHECK(yaml_scalar_event_initialize(&event, \
-            NULL, "tag:yaml.org,2002:str", (value), -1, \
+            NULL, (unsigned char *)"tag:yaml.org,2002:str", \
+            (unsigned char *)(value), -1, \
             1, 1, YAML_PLAIN_SCALAR_STYLE)); \
             CHECK(yaml_emitter_emit(&ctx->emitter, &event));
-#define EMIT_STRING_LEN(value, len) CHECK(yaml_scalar_event_initialize(&event, \
-            NULL, "tag:yaml.org,2002:str", (value), (len), \
+#define EMIT_STRING_LEN(value, len) CHECK(yaml_scalar_event_initialize(&event,\
+            NULL, (unsigned char *)"tag:yaml.org,2002:str", \
+            (unsigned char *)(value), (len), \
             1, 1, YAML_PLAIN_SCALAR_STYLE)); \
             CHECK(yaml_emitter_emit(&ctx->emitter, &event));
 #define VISIT(child, target) CHECK((child)->type->emit(ctx, \
@@ -28,6 +30,7 @@ int coyaml_print_root(coyaml_printctx_t *ctx) {
     CHECK(yaml_emitter_emit(&ctx->emitter, &event));
     CHECK(yaml_stream_end_event_initialize(&event));
     CHECK(yaml_emitter_emit(&ctx->emitter, &event));
+    return 0;
 }
 
 int coyaml_print(FILE *file, coyaml_group_t *root,
@@ -38,7 +41,7 @@ int coyaml_print(FILE *file, coyaml_group_t *root,
     yaml_emitter_set_output_file(&ctx.emitter, file);
     ctx.file = file;
     ctx.comments = mode & COYAML_PRINT_COMMENTS;
-    ctx.defaults = mode & 0xf == COYAML_PRINT_SHORT;
+    ctx.defaults = (mode & 0xf) == COYAML_PRINT_SHORT;
     ctx.config = cfg;
     ctx.root = root;
     int res = coyaml_print_root(&ctx);
@@ -73,7 +76,7 @@ int coyaml_group_emit(coyaml_printctx_t *ctx,
 {
     yaml_event_t event;
     CHECK(yaml_mapping_start_event_initialize(&event,
-        NULL, "tag:yaml.org,2002:map", 1,
+        NULL, (unsigned char *)"tag:yaml.org,2002:map", 1,
         YAML_BLOCK_MAPPING_STYLE));
     CHECK(yaml_emitter_emit(&ctx->emitter, &event));
 
@@ -114,7 +117,7 @@ int coyaml_array_emit(coyaml_printctx_t *ctx,
 {
     yaml_event_t event;
     CHECK(yaml_sequence_start_event_initialize(&event,
-        NULL, "tag:yaml.org,2002:seq", 1,
+        NULL, (unsigned char *)"tag:yaml.org,2002:seq", 1,
         YAML_BLOCK_SEQUENCE_STYLE));
     CHECK(yaml_emitter_emit(&ctx->emitter, &event));
 
@@ -134,7 +137,7 @@ int coyaml_mapping_emit(coyaml_printctx_t *ctx,
 {
     yaml_event_t event;
     CHECK(yaml_mapping_start_event_initialize(&event,
-        NULL, "tag:yaml.org,2002:map", 1,
+        NULL, (unsigned char *)"tag:yaml.org,2002:map", 1,
         YAML_BLOCK_MAPPING_STYLE));
     CHECK(yaml_emitter_emit(&ctx->emitter, &event));
 
@@ -201,7 +204,6 @@ int coyaml_dir_emit(coyaml_printctx_t *ctx,
 {
     yaml_event_t event;
     char *str = *(char **)((char *)target + prop->baseoffset);
-    int len = *(int *)((char *)target + prop->baseoffset + sizeof(char *));
     if(str) {
         EMIT_STRING_LEN(str, *(int *)((char *)target
             + prop->baseoffset + sizeof(char *)));
