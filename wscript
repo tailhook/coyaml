@@ -143,7 +143,7 @@ def build_tests(bld):
         source=['examples/compexample.out', 'compexample.out'],
         always=True)
 
-    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} --config-var clivar=CLI -C -PP > ${TGT[0]}',
+    bld(rule='COMPR_LOGLEVEL=7 ./${SRC[0]} -c ${SRC[1].abspath()} --config-var clivar=CLI -C -PP > ${TGT[0]}',
         source=['compr', 'examples/compexample.yaml'],
         target='compexample.out.ws1',
         always=True)

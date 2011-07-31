@@ -33,3 +33,13 @@ void coyaml_cli_parse_or_exit(coyaml_context_t *ctx, int argc, char **argv) {
         exit((errno == ECOYAML_CLI_EXIT) ? 0 : 1);
     }
 }
+void coyaml_env_parse_or_exit(coyaml_context_t *ctx) {
+    if(coyaml_env_parse(ctx) < 0) {
+        if(errno > ECOYAML_MAX || errno < ECOYAML_MIN) {
+            perror(ctx->program_name);
+        }
+        coyaml_config_free(ctx->target);
+        coyaml_context_free(ctx);
+        exit(1);
+    }
+}

@@ -232,6 +232,12 @@ typedef struct coyaml_option_s {
     void *prop;
 } coyaml_option_t;
 
+typedef struct coyaml_env_var_s {
+    coyaml_option_fun callback;
+    char *name;
+    void *prop;
+} coyaml_env_var_t;
+
 int coyaml_readfile(coyaml_context_t *);
 int coyaml_print(FILE *output, coyaml_group_t *root,
     void *cfg, coyaml_print_enum mode);

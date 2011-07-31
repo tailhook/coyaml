@@ -80,6 +80,7 @@ SimpleHTTPServer:
     command-line: [-D, --log-level]
     command-line-incr: [ -v, --verbose]
     command-line-decr: [ -q, --quiet]
+    environ-var: COMPR_LOGLEVEL
   log-file: !File
     check-dir: yes
     check-writable: yes

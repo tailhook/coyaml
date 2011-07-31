@@ -116,6 +116,21 @@ int coyaml_cli_parse(coyaml_context_t *ctx, int argc, char **argv) {
     return 0;
 }
 
+int coyaml_env_parse(coyaml_context_t *ctx) {
+    for(coyaml_env_var_t *var = ctx->env_vars; var->name; ++var) {
+        char *value = getenv(var->name);
+        if(value) {
+            if(var->callback(value, var->prop, ctx->target) < 0) {
+                fprintf(stderr, "Wrong value for environment variable '%s'",
+                    var->name);
+                errno = EINVAL;
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
+
 int coyaml_int_o(char *value, coyaml_int_t *def, void *target) {
     char *end;
     int val = strtol(value, (char **)&end, 0);

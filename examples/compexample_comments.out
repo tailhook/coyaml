@@ -1,6 +1,6 @@
 SimpleHTTPServer:
   _help_log-level: Amount of debugging info written into log file (or stdout)
-  log-level: 3
+  log-level: 7
   _help_log-file: File to write log into. Specify "-" for stdout.
   log-file: /var/log/test.log
   listen:

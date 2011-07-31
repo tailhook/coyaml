@@ -30,12 +30,17 @@ class IncrOption(Option):
 
 class DecrOption(Option):
     has_argument = False
-    
+
 class EnableOption(Option):
     has_argument = False
 
 class DisableOption(Option):
     has_argument = False
+
+class EnvVar(object):
+    def __init__(self, name, target):
+        self.name = name
+        self.target = target
 
 class Usertype(object):
     def __init__(self, name, members, **kw):
@@ -70,6 +75,7 @@ class Config(object):
         self.meta = ConfigMeta()
         self.types = OrderedDict()
         self.commandline = []
+        self.environ = []
 
     def fill_meta(self, meta):
         self.meta.update(meta)
@@ -92,6 +98,7 @@ class Config(object):
             self._visit_option(v, 'command_line_decr', DecrOption)
             self._visit_option(v, 'command_line_enable', EnableOption)
             self._visit_option(v, 'command_line_disable', DisableOption)
+            self._visit_env(v)
 
     def _visit_option(self, ob, opt, cls):
         if hasattr(ob, opt):
@@ -101,9 +108,14 @@ class Config(object):
             for one in val:
                 self.commandline.append(cls(one, ob))
 
+    def _visit_env(self, ob):
+        if hasattr(ob, 'environ_var'):
+            self.environ.append(EnvVar(ob.environ_var, ob))
+
     def print(self):
         import pprint
         pprint.pprint(self.meta.__dict__)
         pprint.pprint(self.types)
         pprint.pprint(self.data)
         pprint.pprint(self.commandline)
+        pprint.pprint(self.environ)

@@ -164,6 +164,7 @@ class GenCCode(object):
             self.visit_hier(ast)
 
         self.make_options(cli)
+        self.make_environ(vars)
 
         mainstr = Typename(self.prefix+'_main_t')
         mainptr = Typename(self.prefix+'_main_t *')
@@ -217,6 +218,8 @@ class GenCCode(object):
 
             ctx(Statement(Assign(Member(_ctx, 'cmdline'),
                 Ref(self.prefix + '_cmdline'))))
+            ctx(Statement(Assign(Member(_ctx, 'env_vars'),
+                Ident(self.prefix + '_env_vars'))))
             ctx(Statement(Assign(Member(_ctx, 'root_group'), Ref(Subscript(
                 Ident(self.prefix+'_group_vars'),
                 Int(len(self.states['group'].content)-1))))))
@@ -254,6 +257,8 @@ class GenCCode(object):
                 Ident('argc'), Ident('argv')])))
             fun(Statement(Call('coyaml_readfile_or_exit',
                 [ Ref(Ident('ctx')) ])))
+            fun(Statement(Call('coyaml_env_parse_or_exit', [
+                Ref(Ident('ctx')) ])))
             fun(Statement(Call('coyaml_cli_parse_or_exit', [ Ref(Ident('ctx')),
                 Ident('argc'), Ident('argv') ])))
             fun(Statement(Call('coyaml_context_free', [ Ref(Ident('ctx')) ])))
@@ -384,6 +389,16 @@ class GenCCode(object):
                 print_callback=Coerce('coyaml_print_fun',
                     Ref(self.prefix+'_print')),
             )))
+
+    def make_environ(self, ast):
+        ast(VarAssign('coyaml_env_var_t', self.prefix+'_env_vars', Arr([
+            StrValue(
+                name=String(ev.name),
+                prop=Coerce('coyaml_placeholder_t *', ev.target.prop_ref),
+                callback=Coerce('coyaml_option_fun', ev.target.prop_func+'_o'),
+            ) for ev in self.cfg.environ]
+            + [StrValue(name=NULL)]),
+            array=(None,)))
 
     def visit_hier(self, ast):
         # Visits hierarchy to set appropriate structures and member

@@ -53,6 +53,7 @@ typedef struct coyaml_context_s {
     char *program_name;
     coyaml_cmdline_t *cmdline;
     struct coyaml_group_s *root_group;
+    struct coyaml_env_var_s *env_vars;
     char *root_filename;
     bool free_object;
 
@@ -64,6 +65,7 @@ typedef struct coyaml_context_s {
 int coyaml_readfile(coyaml_context_t *ctx);
 int coyaml_cli_prepare(coyaml_context_t *, int argc, char **argv);
 int coyaml_cli_parse(coyaml_context_t *, int argc, char **argv);
+int coyaml_env_parse(coyaml_context_t *ctx);
 void coyaml_context_free(coyaml_context_t *ctx);
 
 int coyaml_set_string(coyaml_context_t *, char *name, char *data, int dlen);
@@ -71,6 +73,7 @@ int coyaml_set_integer(coyaml_context_t *ctx, char *name, long value);
 
 void coyaml_cli_prepare_or_exit(coyaml_context_t *ctx, int argc, char **argv);
 void coyaml_readfile_or_exit(coyaml_context_t *ctx);
+void coyaml_env_parse_or_exit(coyaml_context_t *ctx);
 void coyaml_cli_parse_or_exit(coyaml_context_t *ctx, int argc, char **argv);
 
 #endif // COYAML_HDR_HEADER
