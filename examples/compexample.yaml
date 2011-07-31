@@ -3,7 +3,6 @@ _vars1: &vars1
   X-No-Var: hello$something
   X-Uservar: hello $hello
 _vars2: &vars2
-  X-Version: $coyaml_version
   X-Integer: $intvar bytes
   X-Cli: value from $clivar
 
