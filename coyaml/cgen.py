@@ -185,8 +185,18 @@ class GenCCode(object):
                 if_(Return(NULL))
             ctx(Statement(Assign(Member(_ctx, 'program_name'),
                 String(self.cfg.meta.program_name))))
-            ctx(Statement(Assign(Member(_ctx, 'root_filename'),
-                String(self.cfg.meta.default_config))))
+
+            fn = Member(_ctx, 'root_filename')
+            if hasattr(self.cfg.meta, 'environ_filename'):
+                ctx(Statement(Assign(fn,
+                    Call('getenv', [String(self.cfg.meta.environ_filename)]))))
+                with ctx(If(Not(fn), ctx.block())) as if_:
+                    if_(Statement(Assign(fn,
+                        String(self.cfg.meta.default_config))))
+            else:
+                ctx(Statement(Assign(fn,
+                    String(self.cfg.meta.default_config))))
+
             ctx(Statement(Assign(Member(_ctx, 'cmdline'),
                 Ref(self.prefix + '_cmdline'))))
             ctx(Statement(Assign(Member(_ctx, 'root_group'), Ref(Subscript(

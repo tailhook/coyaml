@@ -2,6 +2,7 @@
 __meta__:
   program-name: simplehttp
   default-config: /etc/simplehttp.yaml
+  environ-filename: COMPR_CFG
   description: >
     This is a non-working server to test some configuration file facilities
 

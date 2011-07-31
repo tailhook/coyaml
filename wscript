@@ -162,7 +162,7 @@ def build_tests(bld):
     bld(rule=diff,
         source=['examples/recexample.out', 'recexample.out'],
         always=True)
-    bld(rule='./${SRC[0]} -c ${SRC[1].abspath()} -Dclivar=CLI > ${TGT[0]}',
+    bld(rule='COMPR_CFG=${SRC[1].abspath()} ./${SRC[0]} -Dclivar=CLI > ${TGT[0]}',
         source=['compr', 'examples/compexample.yaml'],
         target='compr.out',
         always=True)
