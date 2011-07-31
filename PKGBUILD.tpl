@@ -18,3 +18,8 @@ build() {
   ./waf build
   ./waf install --destdir=$pkgdir
 }
+
+check() {
+  cd $srcdir/$pkgname-$pkgver
+  ./waf test
+}
