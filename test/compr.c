@@ -11,7 +11,7 @@ int convert_connectaddr(coyaml_parseinfo_t *info, char *value,
         fprintf(stderr, "Error parsing address ``%s''", value);
         return -1;
     }
-    if(value[0] == '/' || value[0] == '.' && value[1] == '/') { // Unix socket
+    if(value[0] == '/' || (value[0] == '.' && value[1] == '/')) { // Unix sock
         if(info) {
             target->unix_socket = obstack_copy0(&info->head->pieces,
                 value, strlen(value));
@@ -44,6 +44,7 @@ int convert_connectaddr(coyaml_parseinfo_t *info, char *value,
             }
         }
     }
+    return 0;
 }
 
 int convert_listenaddr(coyaml_parseinfo_t *info, char *value,
@@ -52,7 +53,7 @@ int convert_listenaddr(coyaml_parseinfo_t *info, char *value,
         fprintf(stderr, "Error parsing address ``%s''", value);
         return -1;
     }
-    if(value[0] == '/' || value[0] == '.' && value[1] == '/') { // Unix socket
+    if(value[0] == '/' || (value[0] == '.' && value[1] == '/')) { // Unix sock
         if(info) {
             target->unix_socket = obstack_copy0(&info->head->pieces,
                 value, strlen(value));
@@ -81,6 +82,7 @@ int convert_listenaddr(coyaml_parseinfo_t *info, char *value,
             }
         }
     }
+    return 0;
 }
 
 int main(int argc, char **argv) {

@@ -192,6 +192,7 @@ class GenCCode(object):
             ctx(Statement(Assign(Member(_ctx, 'root_group'), Ref(Subscript(
                 Ident(self.prefix+'_group_vars'),
                 Int(len(self.states['group'].content)-1))))))
+            ctx(Return(_ctx))
 
         with ast(Function(Void(), self.prefix+'_free', [
             Param(mainptr, Ident('ptr')) ], ast.block())) as free:
@@ -228,6 +229,7 @@ class GenCCode(object):
             fun(Statement(Call('coyaml_cli_parse_or_exit', [ Ref(Ident('ctx')),
                 Ident('argc'), Ident('argv') ])))
             fun(Statement(Call('coyaml_context_free', [ Ref(Ident('ctx')) ])))
+            fun(Return(Coerce(mainptr, Dot(Ident('ctx'), Ident('target')))))
 
     def make_options(self, ast):
         optval = 1000
@@ -407,6 +409,7 @@ class GenCCode(object):
                     current_def = defaults.get(k)
                 self._visit_defaults(v, Member('cfg', varname(k)),
                     ast=cdef, root=chzone, default=current_def)
+            cdef(Return(Int(0)))
 
     def _visit_defaults(self, item, mem, ast, root, default=None):
         if default is None and hasattr(item, 'default_'):

@@ -72,7 +72,7 @@ def build_tests(bld):
         target       = 'tinytest',
         includes     = ['include', 'test'],
         libpath      = ['.'],
-        cflags       = ['-std=c99'],
+        cflags       = ['-std=c99', '-Wall'],
         lib          = ['coyaml', 'yaml'],
         )
     bld(
@@ -84,7 +84,7 @@ def build_tests(bld):
         target       = 'vartest',
         includes     = ['include', 'test'],
         libpath      = ['.'],
-        cflags       = ['-std=c99'],
+        cflags       = ['-std=c99', '-Wall'],
         lib          = ['coyaml', 'yaml'],
         )
     bld(
@@ -96,7 +96,7 @@ def build_tests(bld):
         target       = 'compr',
         includes     = ['include', 'test'],
         libpath      = ['.'],
-        cflags       = ['-std=c99'],
+        cflags       = ['-std=c99', '-Wall'],
         lib          = ['coyaml', 'yaml'],
         config_name  = 'cfg',
         )
@@ -109,7 +109,7 @@ def build_tests(bld):
         target       = 'recursive',
         includes     = ['include', 'test'],
         libpath      = ['.'],
-        cflags       = ['-std=c99'],
+        cflags       = ['-std=c99', '-Wall'],
         lib          = ['coyaml', 'yaml'],
         config_name  = 'cfg',
         )
