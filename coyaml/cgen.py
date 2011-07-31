@@ -115,6 +115,24 @@ class GenCCode(object):
                 self.states[i] = res
             return self.states.values()
 
+    def _clear_unused_vars(self, transitions, vars):
+        to_remove = set()
+        for name, zone in self.states.items():
+            if not zone.content:
+                to_remove.add('_{}_'.format(name))
+        for item in transitions.content[:]:
+            if isinstance(item, Var):
+                for name in to_remove:
+                    if name in item.name.value:
+                        transitions.content.remove(item)
+                        break
+        for item in vars.content[:]:
+            if isinstance(item, Var):
+                for name in to_remove:
+                    if name in item.name.value:
+                        vars.content.remove(item)
+                        break
+
     def _next_default_fun(self):
         self.default_fun_no += 1
         return self.default_fun_no
@@ -240,6 +258,8 @@ class GenCCode(object):
                 Ident('argc'), Ident('argv') ])))
             fun(Statement(Call('coyaml_context_free', [ Ref(Ident('ctx')) ])))
             fun(Return(Coerce(mainptr, Dot(Ident('ctx'), Ident('target')))))
+
+        self._clear_unused_vars(ast.zone('transitions'), ast.zone('vars'))
 
     def make_options(self, ast):
         optval = 1000
