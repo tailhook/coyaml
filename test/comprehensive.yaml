@@ -101,6 +101,10 @@ SimpleHTTPServer:
     max: 1Gi
     description: >
       Maximum size of request, including headers and body
+  request-timeout: !Float
+    =: 10
+    min: 0.1
+    max: 100.0
   directory-indexes: !Array
     element: !String ~
   root: !Dir

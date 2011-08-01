@@ -10,6 +10,7 @@ SimpleHTTPServer:
     fd: 0
   _help_max-request-size: Maximum size of request, including headers and body
   max-request-size: 1048576
+  request-timeout: 10.000000
   directory-indexes:
   - index
   - index.html

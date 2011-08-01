@@ -728,8 +728,8 @@ class GenCCode(object):
                     if hasattr(item, 'description') else NULL,
                 flagoffset=Int(struct.nextflag())
                     if item.inheritance else Int(0),
-                min=Int(parse_int(getattr(item, 'min', 0))),
-                max=Int(parse_int(getattr(item, 'max', 0))),
+                min=Float(parse_float(getattr(item, 'min', 0))),
+                max=Float(parse_float(getattr(item, 'max', 0))),
                 bitmask=Int(bitmask(
                     hasattr(item, 'min'),
                     hasattr(item, 'max'),
