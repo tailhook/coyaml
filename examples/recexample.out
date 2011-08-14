@@ -5,7 +5,8 @@ Logging:
     dateformat: '%Y%m%d%H%M%S'
     format: '[{time}] {logger} {levelname} {message}'
   handlers:
-  - level: 3
+  - !TimedRotatingFile
+    level: 3
     filename: errors.log
     max-size: 1048576
     period: 86400
@@ -23,7 +24,8 @@ Logging:
         dateformat: '%Y-%m-%d %H:%M:%S'
         format: '{message}'
       handlers:
-      - level: 8
+      - !File
+        level: 8
         filename: performance.log
         max-size: 1048576
         period: 86400
@@ -39,11 +41,13 @@ Logging:
         dateformat: '%Y%m%d%H%M%S'
         format: '[{time}] {logger} {levelname} {message}'
       handlers:
-      - level: 8
+      - !SizeRotatingFile
+        level: 8
         filename: game.log
         max-size: 10485760
         period: 86400
-      - level: 3
+      - !TimedRotatingFile
+        level: 3
         filename: errors.log
         max-size: 1048576
         period: 86400
@@ -61,11 +65,13 @@ Logging:
             dateformat: '%Y%m%d%H%M%S'
             format: '[{time}] {logger} {levelname} {message}'
           handlers:
-          - level: 8
+          - !SizeRotatingFile
+            level: 8
             filename: game.log
             max-size: 10485760
             period: 86400
-          - level: 3
+          - !TimedRotatingFile
+            level: 3
             filename: errors.log
             max-size: 1048576
             period: 86400
@@ -82,11 +88,13 @@ Logging:
             dateformat: '%Y%m%d%H%M%S'
             format: '[{time}] {logger} {levelname} {message}'
           handlers:
-          - level: 8
+          - !SizeRotatingFile
+            level: 8
             filename: game.log
             max-size: 10485760
             period: 86400
-          - level: 3
+          - !TimedRotatingFile
+            level: 3
             filename: errors.log
             max-size: 1048576
             period: 86400

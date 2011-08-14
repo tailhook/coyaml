@@ -52,6 +52,16 @@ __types__:
       mbytes: 2
     __value__: !Int 1
 
+  movement:
+    __tags__:
+      __default__: forward
+      forward: 0
+      left: 1
+      right: 2
+    distance: !Int 10
+    speed: !Float
+      default: 0.5
+
   response:
     code: !Int
         min: 100
@@ -136,6 +146,8 @@ SimpleHTTPServer:
   intvalue3: !Struct
     =: taggedint
     default: 10
+  movements: !Array
+    element: !Struct movement
   _hidden-field: !Int 5
   _hidden-ptr: !_VoidPtr ~
   _hidden-struct: !CStruct timeval

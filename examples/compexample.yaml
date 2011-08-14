@@ -43,6 +43,11 @@ SimpleHTTPServer:
   intvalue: !mbytes 2
   intvalue2:
     =: !kbytes 123
+  movements:
+    - !left
+      speed: 1
+    - !right
+      distance: 2
   responses:
     default:
       code: 200

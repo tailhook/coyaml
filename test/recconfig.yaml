@@ -9,14 +9,14 @@ __types__:
   formatter:
     dateformat: !String "%Y-%m-%d %H:%M:%S"
     format: !String "[{time}] {logger} {levelname} {message}"
-    
+
   handler:
     __tags__:
       __default__: StdErr
       StdErr: 0
       File: 1
       SizeRotatingFile: 2
-      TimedRotatingFile: 2
+      TimedRotatingFile: 3
     level: !Int
       min: 1
       max: 8
@@ -27,13 +27,13 @@ __types__:
     filename: !String ~
     max-size: !Int 1Mi
     period: !Int 86400
-    
+
     __inheritance__:
       # same inheritance chain, actually used to inherit `level` value
       key: loggers
 
   Logger:
-  
+
     level: !Int
       min: 1
       max: 8
@@ -41,32 +41,32 @@ __types__:
       description: >
         Logging level
       inheritance: yes
-    
+
     propagate: !Bool
       =: yes
       inheritance: no
-    
+
     formatter: !Struct
       type: formatter
       inheritance: yes
-    
+
     handlers: !Array
       element: !Struct handler
       inheritance: append-default
-    
+
     inheritedlist: !Array
       element: !String ~
       inheritance: replace-default
-    
+
     noninheritedlist: !Array
       element: !String ~
       inheritance: no
-  
+
     children: !Mapping
       key-element: !String ~
       value-element: !Struct Logger
       inheritance: no
-    
+
     __inheritance__:
       key: loggers
 

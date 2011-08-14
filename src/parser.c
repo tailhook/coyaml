@@ -796,6 +796,7 @@ int coyaml_usertype(coyaml_parseinfo_t *info, coyaml_usertype_t *def, void *targ
             }
         }
     } else {
+        CHECK(coyaml_parse_tag(info, def, target));
         SYNTAX_ERROR(info->event.type == YAML_MAPPING_START_EVENT);
         int fsize = sizeof(coyaml_marks_t) + sizeof(char)*def->flagcount;
         coyaml_marks_t *marks = obstack_alloc(&info->context->pieces, fsize);
