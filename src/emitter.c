@@ -71,12 +71,12 @@ int coyaml_print(FILE *file, coyaml_group_t *root,
     return res;
 }
 
-int coyaml_group_emit(coyaml_printctx_t *ctx,
-    coyaml_group_t *prop, void *target)
+int group_emit_impl(coyaml_printctx_t *ctx,
+    coyaml_group_t *prop, void *target, char *tag, bool tag_implicit)
 {
     yaml_event_t event;
     CHECK(yaml_mapping_start_event_initialize(&event,
-        NULL, (unsigned char *)"tag:yaml.org,2002:map", 1,
+        NULL, (unsigned char *)tag, tag_implicit,
         YAML_BLOCK_MAPPING_STYLE));
     CHECK(yaml_emitter_emit(&ctx->emitter, &event));
 
@@ -97,11 +97,29 @@ int coyaml_group_emit(coyaml_printctx_t *ctx,
     return 0;
 }
 
+int coyaml_group_emit(coyaml_printctx_t *ctx,
+    coyaml_group_t *prop, void *target)
+{
+    return group_emit_impl(ctx, prop, target,
+        "tag:yaml.org,2002:map", TRUE);
+}
+
 int coyaml_usertype_emit(coyaml_printctx_t *ctx,
     coyaml_usertype_t *prop, void *target)
 {
-    VISIT((coyaml_placeholder_t *)prop->group, target);
-    return 0;
+    char *tag = "tag:yaml.org,2002:map";
+    if(prop->tags) {
+        int tnum = *(int *)target;
+        for(coyaml_tag_t *ctag = prop->tags; ctag->tagname; ++ctag) {
+            if(tnum == ctag->tagvalue) {
+                tag = ctag->tagname;
+                break;
+            }
+        }
+        return group_emit_impl(ctx, prop->group, target,
+            tag, tnum == prop->default_tag);
+    }
+    return group_emit_impl(ctx, prop->group, target, tag, TRUE);
 }
 
 int coyaml_custom_emit(coyaml_printctx_t *ctx,
