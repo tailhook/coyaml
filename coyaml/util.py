@@ -4,6 +4,7 @@ import re
 import sys
 
 re_int = re.compile("""\s*(-?\s*\d+)\s*([kMGTPE]i?)?\s*$""")
+re_float = re.compile("""\s*(-?\s*\d+(?:\.\d+)?)\s*([kMGTPE]i?)?\s*$""")
 units = {
     "k": 1000,
     "ki": 1 << 10,
@@ -59,10 +60,10 @@ def parse_int(value):
 def parse_float(value):
     if isinstance(value, (float, int)):
         return value
-    m = re_int.match(value)
+    m = re_float.match(value)
     if not m:
         raise TypeError("Can't convert ``{0}'' to float".format(value))
-    res = int(m.group(1))
+    res = float(m.group(1))
     if m.group(2):
         res *= units[m.group(2)]
     return res

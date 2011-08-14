@@ -59,8 +59,7 @@ __types__:
       left: 1
       right: 2
     distance: !Int 10
-    speed: !Float
-      default: 0.5
+    speed: !Float 0.5
 
   response:
     code: !Int
