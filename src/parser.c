@@ -106,7 +106,7 @@ static coyaml_anchor_t *find_anchor(coyaml_parseinfo_t *info, char *name) {
 }
 
 static coyaml_stack_t *open_file(coyaml_parseinfo_t *info, char *filename) {
-    coyaml_stack_t *res = malloc(sizeof(coyaml_stack_t));
+    coyaml_stack_t *res = malloc(sizeof(coyaml_stack_t)+strlen(filename)+1);
     if(!res) return NULL;
     COYAML_DEBUG("Opening file ``%s''", filename);
     res->file = fopen(filename, "r");
@@ -116,7 +116,8 @@ static coyaml_stack_t *open_file(coyaml_parseinfo_t *info, char *filename) {
     }
     yaml_parser_initialize(&res->parser);
     yaml_parser_set_input_file(&res->parser, res->file);
-    res->filename = filename;
+    res->filename = (char *)res + sizeof(coyaml_stack_t);
+    strcpy(res->filename, filename);
     char *suffix = strrchr(filename, '/');
     if(suffix) {
         res->basedir_len = suffix - filename + 1;
