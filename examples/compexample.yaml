@@ -27,7 +27,6 @@ SimpleHTTPServer:
       X-Subst2: hello${var}world
       <<: [*vars1, *vars2]
 
-
   http-forward:
     - host: 192.168.0.1
     - host: 192.168.0.2
@@ -49,17 +48,4 @@ SimpleHTTPServer:
     - !right
       distance: 2
   responses:
-    default:
-      code: 200
-      status: OK
-      headers:
-          Content-Type: text/html
-          X-Fortune: no
-      body: !FromFile test.html
-    _error: &error
-      code: 500
-      status: Error
-      headers:
-          Content-Type: text/html
-      body: Error
-    internal-error: *error
+    <<: !Include incresponses.yaml

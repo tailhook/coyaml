@@ -365,6 +365,7 @@ static int mapping_next(coyaml_parseinfo_t *info) {
             }
             break;
         case YAML_MAPPING_END_EVENT:
+            if(mapping->level) break;
             if(mapping->mergelevel) {
                 mapping->mergelevel -= 1;
                 if(mapping->mergelists) {

@@ -1,0 +1,14 @@
+default:
+  code: 200
+  status: OK
+  headers:
+      Content-Type: text/html
+      X-Fortune: no
+  body: !FromFile test.html
+_error: &error
+  code: 500
+  status: Error
+  headers:
+      Content-Type: text/html
+  body: Error
+internal-error: *error
