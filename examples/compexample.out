@@ -1,6 +1,7 @@
 SimpleHTTPServer:
   log-level: 3
   log-file: /var/log/test.log
+  should-listen: yes
   listen:
     host: localhost
     port: 80

@@ -97,6 +97,7 @@ SimpleHTTPServer:
       File to write log into. Specify "-" for stdout.
     default: "-"
     command-line: [ -l, --log-file ]
+  should-listen: !Bool yes
   listen: !Struct
     =: listenaddr
     command-line: [ -a, --listen-address]
