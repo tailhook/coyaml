@@ -54,9 +54,14 @@ SimpleHTTPServer:
   status-socket: !zmq.Bind
     value: tcp://127.0.0.1:1234
   zmq-forward:
+    enabled: yes
     value:
     - !zmq.Bind
       value: tcp://127.0.0.1:123
+  better-zmq:
+    enabled: yes
+    value: []
+    some_property: default
   intvalue: !mbytes
     value: 2
   intvalue2:

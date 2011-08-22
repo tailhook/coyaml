@@ -444,6 +444,9 @@ class GenCCode(object):
         chzone = ast.zone(typ) # for proper ordering
         with ast(Function('int', defname, [
             Param(typ, 'cfg') ], ast.block())) as cdef:
+            if hasattr(utype, 'tagname'):
+                cdef(Statement(Assign(Member('cfg', varname(utype.tagname)),
+                    Int(utype.defaulttag))))
             for k, v in getattr(utype, 'members', utype).items():
                 if not isinstance(defaults, dict):
                     if k == 'value':

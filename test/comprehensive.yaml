@@ -39,15 +39,20 @@ __types__:
       zmq.Connect: 2
     __value__: !String ""
 
-  zmqaddr_list:
+  zmqaddr_list: &zmqaddr
     __tags__:
       __property__: kind
       __default__: zmq.Push
       zmq.Push: 1
       zmq.XReq: 2
       zmq.Pub: 3
+    enabled: !Bool yes
     __value__: !Array
         element: !Struct zmqaddr
+
+  annotated_zmqaddr_list:
+    <<: *zmqaddr
+    some_property: !String "default"
 
   taggedint:
     __tags__:
@@ -146,6 +151,8 @@ SimpleHTTPServer:
       Socket address to get status from by zmq protocol
   zmq-forward: !Struct
     =: zmqaddr_list
+  better-zmq: !Struct
+    =: annotated_zmqaddr_list
   intvalue: !Struct taggedint
   intvalue2: !Struct taggedint
   intvalue3: !Struct

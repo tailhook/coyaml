@@ -53,13 +53,19 @@ class Usertype(object):
             self.tags = {k:v for k, v in tags.items()
                 if not k.startswith('__')}
         self.inheritance = members.pop('__inheritance__', None)
-        self.members = OrderedDict((k, v) for k, v in members.items()
-            if not k.startswith('__'))
+        self.members = OrderedDict()
+        for k, v in members.items():
+            if k == '__value__':
+                k = 'value'
+                if isinstance(v, Convert):
+                    continue
+            elif k.startswith('__'):
+                continue
+            self.members[k] = v
         if isinstance(members.get('__value__'), Convert):
             self.convert = members['__value__'].fun
         elif members.get('__value__'):
             self.convert = 'coyaml_tagged_scalar'
-            self.members['value'] = members['__value__']
         for k, v in kw.items():
             setattr(self, k, v)
 
