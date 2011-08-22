@@ -24,12 +24,23 @@ class GenHCode(object):
         for i in getattr(self.cfg.meta, 'c_include', []):
             ast(Include(i))
         ast(VSpace())
+        defined = {}
         for sname, struct in self.cfg.types.items():
             if hasattr(struct, 'tags'):
                 tagtyp = self.prefix+'_'+sname+'_tag_t'
+                num = 0
                 with ast(TypeDef(Enum(ast.block()), tagtyp)) as enum:
                     for k, v in struct.tags.items():
-                        enum(EnumVal(self.prefix.upper()+'_'+makevar(k), v))
+                        name = self.prefix.upper()+'_'+makevar(k)
+                        if name not in defined:
+                            defined[name] = v
+                            enum(EnumVal(name, v))
+                            num += 1
+                        else:
+                            assert defined[name] == v
+                if not num:
+                    del ast.body[-1]
+                    ast(TypeDef('int', tagtyp))
                 ast(VSpace())
             cname = self.prefix+'_'+sname
             with ast(TypeDef(Struct(cname+'_s', ast.block()),

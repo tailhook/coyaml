@@ -12,6 +12,11 @@ __meta__:
 __types__:
 
   connectaddr: &connectaddr
+    __tags__:
+      __default__: auto
+      auto: 0
+      tcp: 1
+      unix: 2
     host: !String ""
     port: !Int
       min: 1
