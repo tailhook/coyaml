@@ -1,5 +1,6 @@
 #include <coyaml_src.h>
 #include "vars.h"
+#include <assert.h>
 
 static int find_value(coyaml_variable_t *var, char *name,
     coyaml_variable_t **node) {
@@ -53,6 +54,8 @@ static coyaml_variable_t *find_and_set(coyaml_context_t *ctx, char *name) {
             var = node->right = new_variable(ctx, name);
         } else if(rel == -1) {
             var = node->left = new_variable(ctx, name);
+        } else {
+            assert(0);
         }
     }
     return var;
