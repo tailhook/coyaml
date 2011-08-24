@@ -5,6 +5,7 @@ __meta__:
   description: >
     This is a non-working server to test some configuration file facilities
   has-arguments: yes
+  mixed-arguments: no
 
 SimpleHTTPServer:
   port: !Int

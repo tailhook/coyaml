@@ -309,6 +309,9 @@ class GenCCode(object):
                 flag='NULL', has_arg='FALSE')),
             optstr = "hc:D:PC"
             optidx = [500, 501, -1, 505, -1, 600, 601]
+            if not getattr(self.cfg.meta, 'mixed_arguments', True):
+                optstr = "+" + optstr
+                optidx.insert(0, -1)
             for opt in self.cfg.commandline:
                 has_arg = opt.__class__ == core.Option
                 if opt.char:

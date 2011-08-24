@@ -11,7 +11,6 @@
 
 int coyaml_cli_prepare(coyaml_context_t *ctx, int argc, char **argv) {
     int opt;
-    int old_optind = optind;
     while((opt = getopt_long(argc, argv,
         ctx->cmdline->optstr, ctx->cmdline->options, NULL)) != -1) {
         char *pos = strchr(ctx->cmdline->optstr, opt);
@@ -55,7 +54,7 @@ int coyaml_cli_prepare(coyaml_context_t *ctx, int argc, char **argv) {
                 break;
         }
     }
-    optind = old_optind;
+    optind = 0;
     return 0;
 }
 
