@@ -25,6 +25,7 @@ typedef struct coyaml_mapkey_s {
 typedef struct coyaml_mapmerge_s {
     struct coyaml_mapmerge_s *prev;
     coyaml_mapkey_t *keys;
+    int height;
     int state;
     int level;
     int mergelevel;

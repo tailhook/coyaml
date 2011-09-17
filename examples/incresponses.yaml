@@ -9,6 +9,8 @@ _error: &error
   code: 500
   status: Error
   headers:
-      Content-Type: text/html
+    Content-Type: text/html
+    <<: !Include headers.yaml
   body: Error
 internal-error: *error
+not-found: *error

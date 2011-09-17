@@ -72,6 +72,7 @@ static char *yaml_event_names[] = {
 static char zero[sizeof(yaml_event_t)] = {0}; // compiler should make this zero
 
 static int coyaml_next(coyaml_parseinfo_t *info);
+static int topmost_next(coyaml_parseinfo_t *info);
 
 static int coyaml_skip(coyaml_parseinfo_t *info) {
     COYAML_DEBUG("Skipping subtree");
@@ -134,6 +135,8 @@ static coyaml_stack_t *open_file(coyaml_parseinfo_t *info, char *filename) {
 }
 
 static int mapping_next(coyaml_parseinfo_t *info);
+static int anchor_next(coyaml_parseinfo_t *info);
+static int alias_next(coyaml_parseinfo_t *info);
 
 static int unpack_anchor(coyaml_parseinfo_t *info) {
     memcpy(&info->event, &info->anchor_unpacking->events[info->anchor_pos],
@@ -144,6 +147,16 @@ static int unpack_anchor(coyaml_parseinfo_t *info) {
         return mapping_next(info);
     } else {
         info->anchor_pos += 1;
+        if(info->event.type == YAML_SCALAR_EVENT) {
+            COYAML_DEBUG("Unpacked %s[%d] (%.*s)",
+                yaml_event_names[info->event.type], info->event.type,
+                (int)info->event.data.scalar.length,
+                info->event.data.scalar.value);
+        } else {
+            COYAML_DEBUG("Unpacked %s[%d]",
+                yaml_event_names[info->event.type],
+                info->event.type);
+        }
         return 0;
     }
 }
@@ -191,7 +204,7 @@ static int include_next(coyaml_parseinfo_t *info) {
                 SYNTAX_ERROR(info->event.type == YAML_STREAM_START_EVENT);
                 CHECK(plain_next(info));
                 SYNTAX_ERROR(info->event.type == YAML_DOCUMENT_START_EVENT);
-                return coyaml_next(info);
+                return plain_next(info);
             }
             break;
         case YAML_DOCUMENT_END_EVENT:
@@ -204,7 +217,7 @@ static int include_next(coyaml_parseinfo_t *info) {
                 info->current_file = cur->prev;
                 info->current_file->next = NULL;
                 free(cur);
-                return coyaml_next(info);
+                return plain_next(info);
             }
             break;
         default:
@@ -282,6 +295,16 @@ static int anchor_next(coyaml_parseinfo_t *info) {
     }
     if(info->anchor_level >= 0) {
         obstack_grow(&info->anchors, &info->event, sizeof(info->event));
+        if(info->event.type == YAML_SCALAR_EVENT) {
+            COYAML_DEBUG("Packed %s[%d] (%.*s)",
+                yaml_event_names[info->event.type], info->event.type,
+                (int)info->event.data.scalar.length,
+                info->event.data.scalar.value);
+        } else {
+            COYAML_DEBUG("Packed %s[%d]",
+                yaml_event_names[info->event.type],
+                info->event.type);
+        }
         if(!info->anchor_level) {
             obstack_grow(&info->anchors, zero, sizeof(zero));
             coyaml_anchor_t *cur = obstack_finish(&info->anchors);
@@ -398,8 +421,8 @@ static int duplicate_next(coyaml_parseinfo_t *info) {
 
     switch(info->event.type) {
         case YAML_SCALAR_EVENT:
-            COYAML_DEBUG("Scalar at state %d level %d",
-                mapping->state, mapping->level);
+            COYAML_DEBUG("Scalar at [%d] state %d level %d",
+                mapping->height, mapping->state, mapping->level);
             if(!mapping->state && !mapping->level) {
                 coyaml_mapkey_t *key = mapping->keys;
                 if(!key) {
@@ -413,7 +436,7 @@ static int duplicate_next(coyaml_parseinfo_t *info) {
                             info->event.data.scalar.value);
                         CHECK(coyaml_skip(info));
                         mapping->state = 0;
-                        return coyaml_next(info);
+                        return duplicate_next(info);
                     } else {
                         if(rel == 1) {
                             key->right = make_mapping_key(info);
@@ -428,19 +451,32 @@ static int duplicate_next(coyaml_parseinfo_t *info) {
             }
             break;
         case YAML_SEQUENCE_START_EVENT:
+            COYAML_DEBUG("Sequence start at [%d] state %d level %d",
+                mapping->height, mapping->state, mapping->level);
             mapping->level += 1;
             break;
         case YAML_SEQUENCE_END_EVENT:
+            COYAML_DEBUG("Sequence end at [%d] state %d level %d",
+                mapping->height, mapping->state, mapping->level);
             mapping->level -= 1;
             if(!mapping->level) {
                 mapping->state = !mapping->state;
             }
             break;
         case YAML_MAPPING_START_EVENT:
+            if(mapping) {
+                COYAML_DEBUG("Mapping[%d] start at state %d level %d",
+                    mapping->height, mapping->state, mapping->level);
+            }
             if(!mapping || mapping->state == 1) {
                 mapping = obstack_alloc(&info->mappieces,
                     sizeof(coyaml_mapmerge_t));
                 mapping->prev = info->top_map;
+                if(!mapping->prev) {
+                    mapping->height = 0;
+                } else {
+                    mapping->height = mapping->prev->height + 1;
+                }
                 mapping->keys = NULL;
                 mapping->state = 0;
                 mapping->level = 0;
@@ -452,11 +488,14 @@ static int duplicate_next(coyaml_parseinfo_t *info) {
             }
             break;
         case YAML_MAPPING_END_EVENT:
+            COYAML_DEBUG("Mapping[%d] end at state %d level %d",
+                mapping->height, mapping->state, mapping->level);
             if(!mapping->state && !mapping->level) {
                 info->top_map = mapping->prev;
                 obstack_free(&info->mappieces, mapping);
-                if(info->top_map) {
-                    info->top_map->state = 0;
+                mapping = info->top_map;
+                if(mapping && !mapping->level) {
+                    mapping->state = !mapping->state;
                 }
             } else {
                 mapping->level -= 1;
@@ -470,18 +509,23 @@ static int duplicate_next(coyaml_parseinfo_t *info) {
     }
     return 0;
 }
+static int topmost_next(coyaml_parseinfo_t *info) {
+    return duplicate_next(info);
+}
 
 static int coyaml_next(coyaml_parseinfo_t *info) {
-    CHECK(duplicate_next(info));
+    CHECK(topmost_next(info));
     if(info->event.type == YAML_SCALAR_EVENT) {
-        COYAML_DEBUG("Event %s[%d] (%.*s)",
+        COYAML_DEBUG("Event %s[%d]%s (%.*s)",
             yaml_event_names[info->event.type], info->event.type,
+            info->anchor_unpacking ? "u" : "",
             (int)info->event.data.scalar.length,
             info->event.data.scalar.value);
     } else {
-        COYAML_DEBUG("Event %s[%d]",
+        COYAML_DEBUG("Event %s[%d]%s",
             yaml_event_names[info->event.type],
-            info->event.type);
+            info->event.type,
+            info->anchor_unpacking ? "u" : "");
     }
     return 0;
 }
