@@ -42,9 +42,18 @@ Requirements
 Build Instructions
 ------------------
 
-Build process is done with waf::
+Build process is done with waf (if your default python is python3)::
 
     ./waf configure --prefix=/usr
     ./waf build
     sudo ./waf install
 
+If you have another python as default one you need the following::
+
+    PYTHON=python3 python3 ./waf configure --prefix=/usr
+    python3 ./waf build
+    sudo python3 ./waf install
+
+(the first line tells waf to use ``python3`` as the internal build tool
+called ``PYTHON``, and other ``python3`` prefixes are for running
+waf itself with correct version of python)
