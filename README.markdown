@@ -33,3 +33,18 @@ All this to meet the following goals:
 
 [YAML]: http://yaml.org
 [libyaml]: http://pyyaml.org/wiki/LibYAML
+
+Requirements
+------------
+ * libyaml (-dev)
+ * python3
+
+Build Instructions
+------------------
+
+Build process is done with waf::
+
+    ./waf configure --prefix=/usr
+    ./waf build
+    sudo ./waf install
+
