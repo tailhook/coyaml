@@ -405,9 +405,9 @@ int coyaml_eval_str(coyaml_parseinfo_t *info,
                 continue;
             }
             if(*c == '\\') {
-                obstack_1grow(&info->head->pieces, *c);
                 SYNTAX_ERROR(*++c);
                 obstack_1grow(&info->head->pieces, *c);
+                ++c;
                 continue;
             }
             ++c;
@@ -429,8 +429,12 @@ int coyaml_eval_str(coyaml_parseinfo_t *info,
                     var->data.str.value, var->data.str.length);
                 free(var);
             } else {
-                while(*++c && (isalnum(*c) || *c == '_'));
+                while(*c && (isalnum(*c) || *c == '_')) ++c;
                 nlen = c - name;
+                if(nlen == 0) {
+                    obstack_1grow(&info->head->pieces, '$');
+                    continue;
+                }
                 char *value = find_var(info, name, nlen);
                 if(value) {
                     obstack_grow(&info->head->pieces, value, strlen(value));

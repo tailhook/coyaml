@@ -11,3 +11,5 @@ Data:
   str1: 10
   str2: 12310
   str3: abc7
+  str4: abc$i
+  str5: abc$(i)

@@ -13,3 +13,5 @@ Data:
   str1: *val
   str2: 123$val
   str3: abc$i
+  str4: abc\$i
+  str5: abc$(i)
