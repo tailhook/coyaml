@@ -15,7 +15,7 @@
     errno = ECOYAML_SYNTAX_ERROR; \
     return -1; }
 #define SYNTAX_ERROR2_NULL(message, ...) if(TRUE) { \
-    fprintf(stderr, "COAYML: Syntax error in config file ``%s'' " \
+    fprintf(stderr, "COYAML: Syntax error in config file ``%s'' " \
         "at line %ld column %ld: " message "\n", \
     info->current_file->filename, info->event.start_mark.line+1, \
     info->event.start_mark.column, ##__VA_ARGS__); \

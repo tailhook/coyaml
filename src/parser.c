@@ -24,15 +24,21 @@
     info->event.start_mark.column); \
     errno = ECOYAML_SYNTAX_ERROR; \
     return -1; }
+#define SYNTAX_ERROR_AT(line, col) { \
+    fprintf(stderr, "COYAML: Syntax error in config file ``%s'' " \
+        "at line %ld column %ld\n", \
+    info->current_file->filename, line, col); \
+    errno = ECOYAML_SYNTAX_ERROR; \
+    return -1; }
 #define SYNTAX_ERROR2(message, ...) if(TRUE) { \
-    fprintf(stderr, "COAYML: Syntax error in config file ``%s'' " \
+    fprintf(stderr, "COYAML: Syntax error in config file ``%s'' " \
         "at line %ld column %ld: " message "\n", \
     info->current_file->filename, info->event.start_mark.line+1, \
     info->event.start_mark.column, ##__VA_ARGS__); \
     errno = ECOYAML_SYNTAX_ERROR; \
     return -1; }
 #define SYNTAX_ERROR2_NULL(message, ...) if(TRUE) { \
-    fprintf(stderr, "COAYML: Syntax error in config file ``%s'' " \
+    fprintf(stderr, "COYAML: Syntax error in config file ``%s'' " \
         "at line %d column %d: " message "\n", \
     info->current_file->filename, info->event.start_mark.line+1, \
     info->event.start_mark.column, ##__VA_ARGS__); \
@@ -162,10 +168,15 @@ static int unpack_anchor(coyaml_parseinfo_t *info) {
 }
 
 static int plain_next(coyaml_parseinfo_t *info) {
+    long oldline = info->event.end_mark.line+1;
+    long oldcol = info->event.end_mark.column;
     if(info->event.type && !info->anchor_unpacking && info->anchor_level < 0) {
         yaml_event_delete(&info->event);
     }
-    COYAML_ASSERT(yaml_parser_parse(&info->current_file->parser, &info->event));
+    if(!yaml_parser_parse(&info->current_file->parser, &info->event)) {
+        SYNTAX_ERROR_AT(oldline, oldcol);
+        return -1;
+    }
     if(info->event.type == YAML_SCALAR_EVENT) {
         COYAML_DEBUG("Low-level event %s[%u] (%.*s)",
             yaml_event_names[info->event.type], info->event.type,
