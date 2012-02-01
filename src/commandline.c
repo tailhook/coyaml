@@ -46,6 +46,9 @@ int coyaml_cli_prepare(coyaml_context_t *ctx, int argc, char **argv) {
                 if(coyaml_set_string(ctx, name, nend + 1, strlen(nend+1)))
                     return -1;
                 } break;
+            case COYAML_CLI_SHOW_VARS:
+                ctx->print_vars = TRUE;
+                break;
             case '?':
                 fprintf(stderr, "%s", ctx->cmdline->usage);
                 errno = ECOYAML_CLI_WRONG_OPTION;
@@ -87,6 +90,7 @@ int coyaml_cli_parse(coyaml_context_t *ctx, int argc, char **argv) {
                 do_exit = TRUE;
                 break;
             case COYAML_CLI_CHECK:
+            case COYAML_CLI_SHOW_VARS:
                 do_exit = TRUE;
                 break;
             }

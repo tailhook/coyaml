@@ -16,6 +16,7 @@
 #define COYAML_CLI_RESERVED 600
 #define COYAML_CLI_PRINT (COYAML_CLI_RESERVED)
 #define COYAML_CLI_CHECK (COYAML_CLI_RESERVED+1)
+#define COYAML_CLI_SHOW_VARS (COYAML_CLI_RESERVED+2)
 
 #define obstack_chunk_alloc malloc
 #define obstack_chunk_free free
@@ -63,6 +64,7 @@ struct coyaml_printctx_s;
 typedef enum {
     COYAML_PRINT_SHORT = 0x00,
     COYAML_PRINT_FULL = 0x01,
+    COYAML_PRINT_VARS = 0x02,
     COYAML_PRINT_COMMENTS = 0x10 // bitmask
 } coyaml_print_enum;
 

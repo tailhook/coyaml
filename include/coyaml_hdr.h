@@ -49,6 +49,7 @@ typedef struct coyaml_cmdline_s {
 typedef struct coyaml_context_s {
     bool debug;
     bool parse_vars;
+    bool print_vars;
     struct coyaml_head_s *target;
     char *program_name;
     coyaml_cmdline_t *cmdline;

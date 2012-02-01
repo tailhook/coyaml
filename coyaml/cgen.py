@@ -19,6 +19,8 @@ Options:
   --debug-config    Print debugging information while parsing configuration file
   --config-vars     Enable variables in configuration file (by default)
   --config-no-vars  Disable variables in configuration file
+  --config-show-vars
+                    Prints variables used in configuration file
   -D,--config-var NAME=VALUE
                     Set value of configuration variable NAME to value VALUE
   -P,--print-config Print read configuration. Including command-line overrides
@@ -306,6 +308,8 @@ class GenCCode(object):
             cmd(StrValue(name=String('print-config'), val=Int(600),
                 flag='NULL', has_arg='FALSE')),
             cmd(StrValue(name=String('check-config'), val=Int(601),
+                flag='NULL', has_arg='FALSE')),
+            cmd(StrValue(name=String('config-show-vars'), val=Int(602),
                 flag='NULL', has_arg='FALSE')),
             optstr = "hc:D:PC"
             optidx = [500, 501, -1, 505, -1, 600, 601]

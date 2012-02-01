@@ -100,3 +100,35 @@ int coyaml_get_string(coyaml_context_t *ctx, char *name,
     }
     return -1;
 }
+
+static void print_var(coyaml_variable_t *var) {
+    if(var->left) {
+        print_var(var->left);
+    }
+    switch(var->type) {
+        case COYAML_VAR_STRING:
+            printf("%s=%.*s\n", var->name,
+                var->data.string.value_len,
+                var->data.string.value);
+            break;
+        case COYAML_VAR_INTEGER:
+            printf("%s=%ld\n", var->name, var->data.integer.value);
+            break;
+        default: break;
+    };
+    if(var->right) {
+        print_var(var->right);
+    }
+}
+
+int coyaml_print_variables(coyaml_context_t *ctx) {
+    print_var(ctx->variables);
+    for(coyaml_anchor_t *a = ctx->parseinfo->anchor_first; a; a = a->next) {
+        if(a->events[0].type == YAML_SCALAR_EVENT) {
+            printf("%s=%.*s\n", a->name,
+                (int)a->events[0].data.scalar.length,
+                (char *)a->events[0].data.scalar.value);
+        }
+    }
+    return 0;
+}

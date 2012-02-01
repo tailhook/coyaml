@@ -579,6 +579,9 @@ int coyaml_readfile(coyaml_context_t *ctx) {
 
     ctx->parseinfo = &sinfo;
     int result = coyaml_root(info, ctx->root_group, ctx->target);
+    if(ctx->print_vars) {
+        coyaml_print_variables(ctx);
+    }
     ctx->parseinfo = NULL;
 
     for(coyaml_marks_t *m = sinfo.last_mark; m; m = m->prev) {
@@ -1033,6 +1036,7 @@ coyaml_context_t *coyaml_context_init(coyaml_context_t *inp) {
         ctx->free_object = FALSE;
     }
     ctx->parse_vars = TRUE;
+    ctx->print_vars = FALSE;
     ctx->parseinfo = NULL;
     obstack_init(&ctx->pieces);
     coyaml_set_string(ctx, "coyaml_version",

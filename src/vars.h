@@ -29,4 +29,5 @@ typedef struct coyaml_variable_s {
 } coyaml_variable_t;
 
 int coyaml_get_string(coyaml_context_t *ctx, char*name, char **data, int *dlen);
+int coyaml_print_variables(coyaml_context_t *ctx);
 #endif //_H_VARS
