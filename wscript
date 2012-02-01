@@ -9,7 +9,7 @@ APPNAME='coyaml'
 if os.path.exists('.git'):
     VERSION=subprocess.getoutput('git describe').lstrip('v').replace('-', '_')
 else:
-    VERSION='0.3.13'
+    VERSION='0.3.14'
 
 top = '.'
 out = 'build'
