@@ -53,6 +53,8 @@ SimpleHTTPServer:
     value:
     - !zmq.Bind
       value: tcp://127.0.0.1:123
+    - !zmq.Bind
+      value: tcp://127.0.0.1:123
   better-zmq:
     enabled: yes
     value: []

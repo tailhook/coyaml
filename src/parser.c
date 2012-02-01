@@ -80,6 +80,11 @@ static char zero[sizeof(yaml_event_t)] = {0}; // compiler should make this zero
 static int coyaml_next(coyaml_parseinfo_t *info);
 static int topmost_next(coyaml_parseinfo_t *info);
 
+static void my_event_delete(yaml_event_t *event) {
+    event->data.scalar.tag = NULL;
+    yaml_event_delete(event);
+}
+
 static int coyaml_skip(coyaml_parseinfo_t *info) {
     COYAML_DEBUG("Skipping subtree");
     int level = 0;
@@ -171,11 +176,17 @@ static int plain_next(coyaml_parseinfo_t *info) {
     long oldline = info->event.end_mark.line+1;
     long oldcol = info->event.end_mark.column;
     if(info->event.type && !info->anchor_unpacking && info->anchor_level < 0) {
-        yaml_event_delete(&info->event);
+        my_event_delete(&info->event);
     }
     if(!yaml_parser_parse(&info->current_file->parser, &info->event)) {
         SYNTAX_ERROR_AT(oldline, oldcol);
         return -1;
+    }
+    if(info->event.data.scalar.tag) {
+        char *oldtag = (char*)info->event.data.scalar.tag;
+        info->event.data.scalar.tag = obstack_copy0(
+            &info->context->pieces, oldtag, strlen(oldtag));
+        free(oldtag);
     }
     if(info->event.type == YAML_SCALAR_EVENT) {
         COYAML_DEBUG("Low-level event %s[%u] (%.*s)",
@@ -249,7 +260,7 @@ static int alias_next(coyaml_parseinfo_t *info) {
             info->anchor_pos = 0;
             info->anchor_unpacking = anch;
             // Sorry, we don't delete event while unpacking alias
-            yaml_event_delete(&info->event);
+            my_event_delete(&info->event);
             return alias_next(info);
         } else {
             SYNTAX_ERROR2("Anchor %s not found",
@@ -604,7 +615,7 @@ int coyaml_readfile(coyaml_context_t *ctx) {
 
     for(coyaml_anchor_t *a = sinfo.anchor_first; a; a = a->next) {
         for(yaml_event_t *ev = a->events; ev->type != YAML_NO_EVENT; ++ev) {
-            yaml_event_delete(ev);
+            my_event_delete(ev);
         }
     }
     obstack_free(&sinfo.anchors, NULL);
@@ -1008,7 +1019,6 @@ int coyaml_tagged_scalar(coyaml_parseinfo_t *info, char *value,
     if(info) {
         CHECK(coyaml_parse_tag(info, prop, (int *)target));
         if(info->event.data.scalar.tag) {
-            free(info->event.data.scalar.tag);
             info->event.data.scalar.tag = NULL;
         }
     }
