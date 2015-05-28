@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <sys/fcntl.h>
 #include <unistd.h>
-#include <alloca.h>
+//#include <alloca.h>
 #include <ctype.h>
 
 #include <coyaml_src.h>
