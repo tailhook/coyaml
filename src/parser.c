@@ -592,6 +592,8 @@ int coyaml_readfile(coyaml_context_t *ctx) {
 
     coyaml_parseinfo_t *info = &sinfo;
 
+    printf("Reading filename %s\n",ctx->root_filename);
+    
     sinfo.root_file = sinfo.current_file = open_file(info, ctx->root_filename);
     if(!sinfo.root_file) {
         obstack_free(&sinfo.anchors, NULL);

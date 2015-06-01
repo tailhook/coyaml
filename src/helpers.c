@@ -5,10 +5,12 @@
 void coyaml_cli_prepare_or_exit(coyaml_context_t *ctx, int argc, char **argv) {
     if(coyaml_cli_prepare(ctx, argc, argv) < 0) {
         if(errno > ECOYAML_MAX || errno < ECOYAML_MIN) {
+	  printf("Error in yaml\n");
             perror(ctx->program_name);
         }
         coyaml_config_free(ctx->target);
         coyaml_context_free(ctx);
+	printf("error in config\n");
         exit((errno == ECOYAML_CLI_HELP) ? 0 : 1);
     }
 }
@@ -20,6 +22,7 @@ void coyaml_readfile_or_exit(coyaml_context_t *ctx) {
         }
         coyaml_config_free(ctx->target);
         coyaml_context_free(ctx);
+	printf("error in config2\n");
         exit(1);
     }
 }
@@ -30,6 +33,7 @@ void coyaml_cli_parse_or_exit(coyaml_context_t *ctx, int argc, char **argv) {
         }
         coyaml_config_free(ctx->target);
         coyaml_context_free(ctx);
+	printf("error in config3\n");
         exit((errno == ECOYAML_CLI_EXIT) ? 0 : 1);
     }
 }
@@ -40,6 +44,7 @@ void coyaml_env_parse_or_exit(coyaml_context_t *ctx) {
         }
         coyaml_config_free(ctx->target);
         coyaml_context_free(ctx);
+	printf("error in config4\n");
         exit(1);
     }
 }
