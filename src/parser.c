@@ -16,6 +16,7 @@
 #include "util.h"
 #include "copy.h"
 #include "eval.h"
+#include "config.h"
 
 #define SYNTAX_ERROR(cond) if(!(cond)) { \
     fprintf(stderr, "COYAML: Syntax error in config file ``%s'' " \
@@ -1061,7 +1062,7 @@ coyaml_context_t *coyaml_context_init(coyaml_context_t *inp) {
     ctx->parseinfo = NULL;
     obstack_init(&ctx->pieces);
     coyaml_set_string(ctx, "coyaml_version",
-        COYAML_VERSION, strlen(COYAML_VERSION));
+        PACKAGE_VERSION, strlen(PACKAGE_VERSION));
     return ctx;
 }
 
