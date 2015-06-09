@@ -210,15 +210,18 @@ static int include_next(coyaml_parseinfo_t *info) {
                 && !strcmp((char *)info->event.data.scalar.tag, "!Include")) {
                 char *fn = (char *)info->event.data.scalar.value;
                 SYNTAX_ERROR(*fn);
+                
+                char fn2[info->current_file->basedir_len +
+                         info->event.data.scalar.length + 1];
                 if(*fn != '/') {
-                    fn = alloca(info->current_file->basedir_len +
-                        info->event.data.scalar.length + 1);
-                    strcpy(fn, info->current_file->basedir);
-                    strcpy(fn + info->current_file->basedir_len,
-                        (char *)info->event.data.scalar.value);
+                    strcpy(fn2, info->current_file->basedir);
+                    strcpy(fn2 + info->current_file->basedir_len,
+                           (char *)info->event.data.scalar.value);
+                } else {
+                  strcpy(fn2,(char *)info->event.data.scalar.value); 
                 }
-                coyaml_stack_t *cur = open_file(info, fn);
-                VALUE_ERROR(cur, "Can't open file ``%s''", fn);
+                coyaml_stack_t *cur = open_file(info, fn2);
+                VALUE_ERROR(cur, "Can't open file ``%s''", fn2);
                 cur->prev = info->current_file;
                 info->current_file->next = cur;
                 info->current_file = cur;
@@ -807,25 +810,31 @@ int coyaml_string(coyaml_parseinfo_t *info, coyaml_string_t *def, void *target) 
     if(tag) {
         if(!strcmp(tag, "!FromFile")) {
             char *fn = (char *)info->event.data.scalar.value;
+
+
+            char fn2[info->current_file->basedir_len +
+                     info->event.data.scalar.length + 1];
             if(*fn != '/') {
-                fn = alloca(info->current_file->basedir_len
-                    + info->event.data.scalar.length + 1);
-                strcpy(fn, info->current_file->basedir);
-                strcpy(fn + info->current_file->basedir_len,
-                    (char *)info->event.data.scalar.value);
+              strcpy(fn2, info->current_file->basedir);
+              strcpy(fn2 + info->current_file->basedir_len,
+                     (char *)info->event.data.scalar.value);
+            } else {
+              strcpy(fn2,(char *)info->event.data.scalar.value); 
             }
+
+                
             COYAML_DEBUG("Opening ``%s'' at ``%s''",
-                fn, info->current_file->basedir);
-            int file = open(fn, O_RDONLY);
-            VALUE_ERROR(file >= 0, "Can't open file ``%s''", fn);
+                fn2, info->current_file->basedir);
+            int file = open(fn2, O_RDONLY);
+            VALUE_ERROR(file >= 0, "Can't open file ``%s''", fn2);
             struct stat finfo;
-            VALUE_ERROR(!fstat(file, &finfo), "Can't stat ``%s''", fn);
+            VALUE_ERROR(!fstat(file, &finfo), "Can't stat ``%s''", fn2);
             void *body = *(char **)(((char *)target)+def->baseoffset) \
                 = obstack_alloc(&info->head->pieces, finfo.st_size);
             *(int *)(((char *)target)+def->baseoffset+sizeof(char*)) \
                 = finfo.st_size;
             VALUE_ERROR(read(file, body, finfo.st_size) == finfo.st_size,
-                "Couldn't read file ``%s''", fn);
+                "Couldn't read file ``%s''", fn2);
             close(file);
         } else if(!strcmp(tag, "!Raw")) {
             *(char **)(((char *)target)+def->baseoffset) = obstack_copy0(
