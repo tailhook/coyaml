@@ -66,3 +66,7 @@ coyaml-*.tar.bz2
 /stamp-h1
 /configure
 /libtool
+/#config.h#
+/scripts/#coyaml#
+/scripts/.#coyaml
+/setup.py~
