@@ -1,0 +1,6 @@
+Install
+=======
+
+autoreconf
+./configure
+make
